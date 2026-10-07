@@ -1,0 +1,39 @@
+.empty-state {
+    flex-direction: column;
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #5a6872;
+}
+
+.pagination {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.page-size-select {
+    width: 80px;
+    display: inline-block;
+}
+
+.select-all-banner {
+    border-radius: 4px;
+    margin-bottom: 0.5rem;
+}
+
+.select-all-link {
+    font-weight: 600;
+    text-decoration: underline;
+    cursor: pointer;
+    color: #032d60;
+}
+
+.select-all-link:hover {
+    color: #014486;
+}
+
+/* Export toolbar section — attached cleanly at the bottom of the card */
+.card-export-section {
+    border-top: 1px solid #dddbda;
+    border-radius: 0 0 4px 4px;
+    overflow: hidden;
+}

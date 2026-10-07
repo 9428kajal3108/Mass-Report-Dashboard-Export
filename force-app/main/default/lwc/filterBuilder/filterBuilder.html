@@ -1,0 +1,135 @@
+<template>
+    <lightning-card icon-name="utility:filter" title="Filter Reports">
+        <div slot="actions">
+            <!-- Mode toggle -->
+            <lightning-button-group>
+                <lightning-button
+                    label="Condition Builder"
+                    variant={builderVariant}
+                    onclick={switchToBuilder}>
+                </lightning-button>
+                <lightning-button
+                    label="Raw SOQL"
+                    variant={rawVariant}
+                    onclick={switchToRaw}>
+                </lightning-button>
+            </lightning-button-group>
+        </div>
+
+        <div class="slds-var-p-horizontal_medium slds-var-p-bottom_medium">
+
+            <!-- ── CONDITION BUILDER MODE ── -->
+            <template if:true={isBuilderMode}>
+                <!-- Condition rows — last row shows inline + Add Condition button -->
+                <template for:each={conditionsWithMeta} for:item="cond" for:index="idx">
+                    <c-filter-row
+                        key={cond.id}
+                        row-index={idx}
+                        fields={fields}
+                        condition={cond}
+                        show-add-button={cond.isLast}
+                        onconditionchange={handleConditionChange}
+                        onconditionremove={handleConditionRemove}
+                        onaddcondition={addCondition}>
+                    </c-filter-row>
+                </template>
+
+                <!-- Logic toggle (only when > 1 condition) -->
+                <template if:true={showLogicToggle}>
+                    <div class="slds-grid slds-gutters_x-small slds-var-m-top_xx-small slds-grid_vertical-align-center">
+                        <div class="slds-col slds-no-flex">
+                            <span class="slds-text-body_small slds-var-m-right_x-small">Join with:</span>
+                            <lightning-button-group>
+                                <lightning-button
+                                    label="AND"
+                                    variant={andVariant}
+                                    onclick={setAndLogic}>
+                                </lightning-button>
+                                <lightning-button
+                                    label="OR"
+                                    variant={orVariant}
+                                    onclick={setOrLogic}>
+                                </lightning-button>
+                            </lightning-button-group>
+                        </div>
+                    </div>
+                </template>
+            </template>
+
+            <!-- ── RAW SOQL MODE ── -->
+            <template if:true={isRawMode}>
+                <div class="slds-form-element">
+                    <label class="slds-form-element__label" for="rawSoql">
+                        <abbr class="slds-required" title="required">*</abbr>
+                        Raw SOQL
+                    </label>
+                    <div class="slds-form-element__control">
+                        <textarea
+                            id="rawSoql"
+                            class="slds-textarea soql-textarea"
+                            placeholder="SELECT Id, Name, DeveloperName, FolderName FROM Report WHERE ..."
+                            value={rawSOQL}
+                            oninput={handleRawSOQLInput}>
+                        </textarea>
+                    </div>
+                </div>
+
+                <!-- Validation feedback -->
+                <template if:true={validationError}>
+                    <div class="slds-notify slds-notify_alert slds-theme_error slds-var-m-top_x-small"
+                         role="alert">
+                        <lightning-icon icon-name="utility:error" size="x-small"
+                            class="slds-var-m-right_x-small"></lightning-icon>
+                        <span>{validationError}</span>
+                    </div>
+                </template>
+                <template if:true={isValidated}>
+                    <div class="slds-notify slds-notify_alert slds-theme_success slds-var-m-top_x-small"
+                         role="alert">
+                        <lightning-icon icon-name="utility:success" size="x-small"
+                            class="slds-var-m-right_x-small"></lightning-icon>
+                        <span>SOQL is valid. Click Search to load results.</span>
+                    </div>
+                </template>
+            </template>
+
+            <!-- ── ACTION BUTTONS ── -->
+            <div class="slds-grid slds-gutters_x-small slds-var-m-top_medium">
+                <div class="slds-col slds-no-flex">
+                    <!-- In raw mode: Validate first, then Search -->
+                    <template if:true={isRawMode}>
+                        <lightning-button
+                            label="Validate SOQL"
+                            variant="neutral"
+                            icon-name="utility:check"
+                            disabled={isValidating}
+                            onclick={handleValidate}>
+                        </lightning-button>
+                        <template if:true={isValidating}>
+                            <lightning-spinner alternative-text="Validating..." size="small"
+                                class="slds-var-m-left_x-small"></lightning-spinner>
+                        </template>
+                    </template>
+
+                    <lightning-button
+                        label="Search Reports"
+                        variant="brand"
+                        icon-name="utility:search"
+                        disabled={isSearchDisabled}
+                        onclick={handleSearch}
+                        class="slds-var-m-left_x-small">
+                    </lightning-button>
+                </div>
+
+                <div class="slds-col slds-no-flex">
+                    <lightning-button
+                        label="Clear"
+                        variant="neutral"
+                        icon-name="utility:clear"
+                        onclick={handleClear}>
+                    </lightning-button>
+                </div>
+            </div>
+        </div>
+    </lightning-card>
+</template>

@@ -1,0 +1,26 @@
+.soql-textarea {
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 0.8rem;
+    min-height: 80px;
+    resize: vertical;
+}
+
+.soql-preview {
+    background: #f4f6f9;
+    border-radius: 4px;
+    padding: 8px 12px;
+    border-left: 3px solid #0070d2;
+}
+
+.soql-code {
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 0.75rem;
+    color: #1b2733;
+    display: block;
+    margin-top: 4px;
+    word-break: break-all;
+}
+
+.add-condition-row {
+    margin-left: 0;
+}

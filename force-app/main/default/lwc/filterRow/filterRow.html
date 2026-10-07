@@ -1,0 +1,72 @@
+<template>
+    <div class="slds-grid slds-gutters_x-small slds-grid_vertical-align-center filter-row">
+
+        <!-- Field selector -->
+        <div class="slds-col" style="max-width:180px; min-width:130px;">
+            <lightning-combobox
+                name="field"
+                label="Field"
+                variant="label-hidden"
+                placeholder="Select Field..."
+                value={condition.field}
+                options={fieldOptions}
+                onchange={handleFieldChange}>
+            </lightning-combobox>
+        </div>
+
+        <!-- Operator selector -->
+        <div class="slds-col" style="max-width:155px; min-width:110px;">
+            <lightning-combobox
+                name="operator"
+                label="Operator"
+                variant="label-hidden"
+                placeholder="Operator..."
+                value={condition.operator}
+                options={operatorOptions}
+                disabled={isOperatorDisabled}
+                onchange={handleOperatorChange}>
+            </lightning-combobox>
+        </div>
+
+        <!-- Value input -->
+        <div class="slds-col" style="max-width:210px; min-width:110px;">
+            <template if:false={isValueHidden}>
+                <lightning-input
+                    name="value"
+                    label="Value"
+                    variant="label-hidden"
+                    placeholder={valuePlaceholder}
+                    value={condition.value}
+                    onchange={handleValueChange}>
+                </lightning-input>
+            </template>
+            <template if:true={isValueHidden}>
+                <span class="slds-text-color_weak slds-text-body_small"
+                      style="display:block;padding-top:8px;">No value needed</span>
+            </template>
+        </div>
+
+        <!-- Remove button -->
+        <div class="slds-col slds-no-flex slds-align_absolute-center">
+            <lightning-button-icon
+                icon-name="utility:delete"
+                variant="bare"
+                alternative-text="Remove condition"
+                title="Remove this condition"
+                size="small"
+                onclick={handleRemove}>
+            </lightning-button-icon>
+        </div>
+
+        <!-- + Add Condition (only on last row) - inline in same line -->
+        <template if:true={showAddButton}>
+            <div class="slds-col slds-no-flex slds-var-m-left_xx-small">
+                <lightning-button
+                    label="+ Add Condition"
+                    variant="neutral"
+                    onclick={handleAdd}>
+                </lightning-button>
+            </div>
+        </template>
+    </div>
+</template>

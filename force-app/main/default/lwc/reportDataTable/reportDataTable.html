@@ -1,0 +1,154 @@
+<template>
+    <lightning-card icon-name="standard:report" title="List of Reports">
+        <div slot="actions" class="slds-grid slds-align_absolute-center slds-gutters_x-small">
+            <!-- Total count badge -->
+            <template if:true={hasResults}>
+                <span class="slds-badge slds-var-m-right_x-small">
+                    Total: {searchResult.totalCount}
+                </span>
+                <span class="slds-text-body_small slds-text-color_weak">
+                    Page {currentPage} of {totalPages}
+                </span>
+            </template>
+        </div>
+
+        <div class="slds-var-p-horizontal_medium slds-var-p-bottom_medium">
+
+            <!-- ── LOADING SPINNER ── -->
+            <template if:true={isLoading}>
+                <div class="slds-align_absolute-center slds-var-p-around_large">
+                    <lightning-spinner alternative-text="Loading reports..." size="medium"></lightning-spinner>
+                </div>
+            </template>
+
+            <!-- ── ERROR STATE ── -->
+            <template if:true={hasError}>
+                <div class="slds-notify slds-notify_alert slds-theme_error" role="alert">
+                    <lightning-icon icon-name="utility:error" size="x-small"
+                        class="slds-var-m-right_x-small"></lightning-icon>
+                    <span>{searchResult.errorMessage}</span>
+                </div>
+            </template>
+
+            <!-- ── EMPTY STATE ── -->
+            <template if:true={isEmpty}>
+                <div class="slds-align_absolute-center slds-var-p-around_large empty-state">
+                    <lightning-icon icon-name="utility:search" size="large"
+                        class="slds-var-m-bottom_small"></lightning-icon>
+                    <p class="slds-text-heading_small">No reports found</p>
+                    <p class="slds-text-body_small slds-text-color_weak">
+                        Use the filter above to search for reports.
+                    </p>
+                </div>
+            </template>
+
+            <!-- ── RESULTS TABLE ── -->
+            <template if:true={hasResults}>
+
+                <!-- Quick search bar -->
+                <div class="slds-var-m-bottom_small slds-grid slds-align_absolute-center">
+                    <div class="slds-col">
+                        <lightning-input
+                            type="search"
+                            label="Quick Search"
+                            variant="label-hidden"
+                            placeholder="Filter by name or folder..."
+                            value={quickSearchTerm}
+                            onchange={handleQuickSearch}>
+                        </lightning-input>
+                    </div>
+                    <div class="slds-col slds-no-flex slds-var-m-left_x-small">
+                        <template if:true={isQuickFiltered}>
+                            <span class="slds-text-body_small slds-text-color_weak">
+                                Showing {filteredRecords.length} of {searchResult.records.length}
+                            </span>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Select-all-across-pages banner -->
+                <template if:true={showSelectAllBanner}>
+                    <div class="slds-notify slds-notify_alert slds-theme_info select-all-banner"
+                         role="status">
+                        <lightning-icon icon-name="utility:info" size="x-small"
+                            class="slds-var-m-right_x-small"></lightning-icon>
+                        <template if:false={selectAllAcrossPages}>
+                            All <strong>{pageSize}</strong> records on this page are selected.
+                            <a href="javascript:void(0)" onclick={handleSelectAllAcrossPages}
+                               class="slds-var-m-left_x-small select-all-link">
+                                Select all {searchResult.totalCount} records in this search
+                            </a>
+                        </template>
+                        <template if:true={selectAllAcrossPages}>
+                            All <strong>{searchResult.totalCount}</strong> records are selected.
+                            <a href="javascript:void(0)" onclick={handleClearAllSelection}
+                               class="slds-var-m-left_x-small select-all-link">
+                                Clear selection
+                            </a>
+                        </template>
+                    </div>
+                </template>
+
+                <!-- Data table -->
+                <lightning-datatable
+                    key-field="id"
+                    data={filteredRecords}
+                    columns={columns}
+                    selected-rows={selectedRowIds}
+                    sorted-by={sortField}
+                    sorted-direction={sortDirection}
+                    default-sort-direction="asc"
+                    onrowselection={handleRowSelection}
+                    onsort={handleSort}
+                    suppress-bottom-bar>
+                </lightning-datatable>
+
+                <!-- Pagination controls -->
+                <div class="slds-grid slds-align_absolute-center slds-var-m-top_small pagination">
+                    <div class="slds-col slds-no-flex">
+                        <lightning-button-group>
+                            <lightning-button
+                                label="&#171; First"
+                                disabled={isFirstPage}
+                                onclick={goFirst}>
+                            </lightning-button>
+                            <lightning-button
+                                label="&#8249; Prev"
+                                disabled={isFirstPage}
+                                onclick={goPrev}>
+                            </lightning-button>
+                            <lightning-button
+                                label="Next &#8250;"
+                                disabled={isLastPage}
+                                onclick={goNext}>
+                            </lightning-button>
+                            <lightning-button
+                                label="Last &#187;"
+                                disabled={isLastPage}
+                                onclick={goLast}>
+                            </lightning-button>
+                        </lightning-button-group>
+                    </div>
+                    <div class="slds-col slds-no-flex slds-var-m-left_medium slds-align_absolute-center">
+                        <span class="slds-text-body_small slds-var-m-right_x-small">View</span>
+                        <lightning-combobox
+                            name="pageSize"
+                            label="Page Size"
+                            variant="label-hidden"
+                            value={pageSizeStr}
+                            options={pageSizeOptions}
+                            class="page-size-select"
+                            onchange={handlePageSizeChange}>
+                        </lightning-combobox>
+                        <span class="slds-text-body_small slds-var-m-left_x-small">per page</span>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- Export toolbar lives inside this same card -->
+        <div class="card-export-section">
+            <slot name="export-toolbar"></slot>
+        </div>
+    </lightning-card>
+</template>

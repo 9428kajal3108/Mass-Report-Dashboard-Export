@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<StaticResource xmlns="http://soap.sforce.com/2006/04/metadata">
+    <cacheControl>Private</cacheControl>
+    <contentType>text/javascript</contentType>
+    <description>JSZip v3.10.1 — client-side ZIP file creation library. Download jszip.min.js from https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js and save as jszip.resource (no extension).</description>
+</StaticResource>
