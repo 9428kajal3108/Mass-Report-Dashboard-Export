@@ -1,43 +1,42 @@
 import { LightningElement, api, track, wire } from 'lwc';
-import { ShowToastEvent }        from 'lightning/platformShowToastEvent';
-import { loadScript }            from 'lightning/platformResourceLoader';
-import JSZIP                     from '@salesforce/resourceUrl/jszip';
-import getReportFields           from '@salesforce/apex/ReportQueryService.getReportFields';
-import searchReports             from '@salesforce/apex/ReportQueryService.searchReports';
-import searchReportsByRawSOQL    from '@salesforce/apex/ReportQueryService.searchReportsByRawSOQL';
-import getAllReportIds            from '@salesforce/apex/ReportQueryService.getAllReportIds';
-import exportReports             from '@salesforce/apex/ReportExportService.exportReports';
+import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import { loadScript } from 'lightning/platformResourceLoader';
+import JSZIP from '@salesforce/resourceUrl/jszip';
+import getReportFields from '@salesforce/apex/ReportQueryService.getReportFields';
+import searchReports from '@salesforce/apex/ReportQueryService.searchReports';
+import searchReportsByRawSOQL from '@salesforce/apex/ReportQueryService.searchReportsByRawSOQL';
+import getAllReportIds from '@salesforce/apex/ReportQueryService.getAllReportIds';
+import exportReports from '@salesforce/apex/ReportExportService.exportReports';
 
 export default class MassReportExporter extends LightningElement {
 
     // ─── State ────────────────────────────────────────────────────────────────
 
-    @api cardTitle = 'Mass Report Exporter';
+    @api cardTitle = 'Mass Report/Dashboard Exporter';
 
     @wire(getReportFields)
     wiredFields({ data, error }) {
-        if (data)  { this.reportFields = data; }
+        if (data) { this.reportFields = data; }
         if (error) { this._showToast('Error', 'Could not load Report fields.', 'error'); }
     }
 
-    @track reportFields      = [];
-    @track searchResult      = null;
-    @track isSearching       = false;
-    @track isExporting       = false;
-    @track pageSize          = 10;
-    @track currentOffset     = 0;
-    @track selectedCount     = 0;
-    @track showDownloadModal = false;
-    @track pendingFormat     = 'Excel';
+    @track reportFields = [];
+    @track searchResult = null;
+    @track isSearching = false;
+    @track isExporting = false;
+    @track pageSize = 10;
+    @track currentOffset = 0;
+    @track selectedCount = 0;
+    @track pendingFormat = 'Excel';
 
     // Internal selection state
-    _selectedIds            = [];
-    _selectAllAcrossPages   = false;
-    _currentConditionsJson  = '[]';
-    _currentLogic           = 'AND';
-    _currentRawSOQL         = '';
-    _currentMode            = 'builder';
-    _jszipLoaded            = false;
+    _selectedIds = [];
+    _selectAllAcrossPages = false;
+    _currentConditionsJson = '[]';
+    _currentLogic = 'AND';
+    _currentRawSOQL = '';
+    _currentMode = 'builder';
+    _jszipLoaded = false;
 
     // ─── Lifecycle ────────────────────────────────────────────────────────────
 
@@ -52,14 +51,14 @@ export default class MassReportExporter extends LightningElement {
 
     handleSearchRequest(event) {
         const { mode, conditions, logic, rawSOQL } = event.detail;
-        this._currentMode  = mode;
+        this._currentMode = mode;
         this._currentLogic = logic;
         this.currentOffset = 0;
         this._resetSelection();
 
         if (mode === 'builder') {
             this._currentConditionsJson = JSON.stringify(conditions);
-            this._currentRawSOQL        = '';
+            this._currentRawSOQL = '';
             this._runBuilderSearch(0);
         } else {
             this._currentRawSOQL = rawSOQL;
@@ -68,7 +67,7 @@ export default class MassReportExporter extends LightningElement {
     }
 
     handleClearFilters() {
-        this.searchResult  = null;
+        this.searchResult = null;
         this.currentOffset = 0;
         this._resetSelection();
     }
@@ -77,7 +76,7 @@ export default class MassReportExporter extends LightningElement {
 
     handlePageChange(event) {
         const { pageSize, offset } = event.detail;
-        this.pageSize      = pageSize;
+        this.pageSize = pageSize;
         this.currentOffset = offset;
         this._resetSelection();
 
@@ -95,10 +94,10 @@ export default class MassReportExporter extends LightningElement {
         this._selectAllAcrossPages = selectAllAcrossPages;
 
         if (selectAllAcrossPages) {
-            this._selectedIds  = selectedIds;
+            this._selectedIds = selectedIds;
             this.selectedCount = count;
         } else {
-            this._selectedIds  = selectedPageIds;
+            this._selectedIds = selectedPageIds;
             this.selectedCount = selectedPageIds.length;
         }
     }
@@ -108,9 +107,9 @@ export default class MassReportExporter extends LightningElement {
             this.isSearching = true;
             const allIds = await getAllReportIds({
                 conditionsJson: this._currentConditionsJson,
-                logic:          this._currentLogic
+                logic: this._currentLogic
             });
-            this._selectedIds  = allIds;
+            this._selectedIds = allIds;
             this.selectedCount = allIds.length;
 
             const table = this.refs.dataTable;
@@ -128,31 +127,16 @@ export default class MassReportExporter extends LightningElement {
         }
     }
 
-    // ─── Export Request → show modal ──────────────────────────────────────────
+    // ─── Export Request (Direct Export) ───────────────────────────────────────
 
     handleExportRequest(event) {
         if (!this._selectedIds || this._selectedIds.length === 0) {
             this._showToast('No Selection', 'Please select at least one report.', 'warning');
             return;
         }
-        this.pendingFormat     = event.detail.format;
-        this.showDownloadModal = true;
-    }
-
-    // ─── Modal Handlers ───────────────────────────────────────────────────────
-
-    handleModalCancel() {
-        this.showDownloadModal = false;
-    }
-
-    async handleDownloadZip() {
-        this.showDownloadModal = false;
-        await this._runExport(true);
-    }
-
-    async handleDownloadIndividual() {
-        this.showDownloadModal = false;
-        await this._runExport(false);
+        const { format, asZip } = event.detail;
+        this.pendingFormat = format;
+        this._runExport(Boolean(asZip));
     }
 
     // ─── Core Export (Apex → base64 → Blob → download) ───────────────────────
@@ -168,7 +152,7 @@ export default class MassReportExporter extends LightningElement {
         try {
             const result = await exportReports({
                 reportIds: this._selectedIds.slice(0, 50),
-                format:    this.pendingFormat
+                format: this.pendingFormat
             });
 
             if (!result.success) {
@@ -185,9 +169,9 @@ export default class MassReportExporter extends LightningElement {
             this._showToast(
                 'Export Complete',
                 result.totalExported + ' report(s) exported successfully'
-                    + (result.totalFailed > 0
-                        ? '. ' + result.totalFailed + ' failed — check error files.'
-                        : '.'),
+                + (result.totalFailed > 0
+                    ? '. ' + result.totalFailed + ' failed — check error files.'
+                    : '.'),
                 result.totalFailed > 0 ? 'warning' : 'success'
             );
         } catch (e) {
@@ -218,7 +202,7 @@ export default class MassReportExporter extends LightningElement {
         }
 
         if (window.JSZip && files && files.length > 0) {
-            const zip       = new window.JSZip();
+            const zip = new window.JSZip();
             const timestamp = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '');
             files.forEach(file => {
                 zip.file(file.name, file.base64Content, { base64: true });
@@ -256,10 +240,10 @@ export default class MassReportExporter extends LightningElement {
     _downloadBase64File(file) {
         return new Promise(resolve => {
             try {
-                const byteChars  = atob(file.base64Content);
+                const byteChars = atob(file.base64Content);
                 const byteArrays = [];
                 for (let i = 0; i < byteChars.length; i += 512) {
-                    const slice    = byteChars.slice(i, i + 512);
+                    const slice = byteChars.slice(i, i + 512);
                     const byteNums = new Array(slice.length);
                     for (let j = 0; j < slice.length; j++) {
                         byteNums[j] = slice.charCodeAt(j);
@@ -291,7 +275,7 @@ export default class MassReportExporter extends LightningElement {
         const url = URL.createObjectURL(blob);
         try {
             const a = document.createElement('a');
-            a.href  = url;
+            a.href = url;
             a.download = fileName;
             a.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
             (document.body || document.documentElement).appendChild(a);
@@ -316,8 +300,8 @@ export default class MassReportExporter extends LightningElement {
         try {
             this.searchResult = await searchReports({
                 conditionsJson: this._currentConditionsJson,
-                logic:          this._currentLogic,
-                pageSize:       this.pageSize,
+                logic: this._currentLogic,
+                pageSize: this.pageSize,
                 offset
             });
             if (!this.searchResult.success) {
@@ -340,7 +324,7 @@ export default class MassReportExporter extends LightningElement {
         this.isSearching = true;
         try {
             this.searchResult = await searchReportsByRawSOQL({
-                rawSOQL:  this._currentRawSOQL,
+                rawSOQL: this._currentRawSOQL,
                 pageSize: this.pageSize,
                 offset
             });
@@ -363,9 +347,9 @@ export default class MassReportExporter extends LightningElement {
     // ─── Private: Helpers ─────────────────────────────────────────────────────
 
     _resetSelection() {
-        this._selectedIds          = [];
+        this._selectedIds = [];
         this._selectAllAcrossPages = false;
-        this.selectedCount         = 0;
+        this.selectedCount = 0;
     }
 
     _showToast(title, message, variant) {

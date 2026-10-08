@@ -9,89 +9,28 @@
                     {cardTitle}
                 </h1>
                 <p class="slds-text-body_small slds-text-color_weak slds-var-m-top_xx-small">
-                    Filter, select, and bulk-download Salesforce Reports as Excel or CSV.
+                    Filter, select, and bulk-download Salesforce Reports/Dashbaord as Excel or CSV.
                 </p>
             </div>
         </div>
 
         <!-- Filter Panel -->
         <div class="slds-var-m-bottom_medium">
-            <c-filter-builder
-                fields={reportFields}
-                onsearchrequest={handleSearchRequest}
+            <c-filter-builder fields={reportFields} onsearchrequest={handleSearchRequest}
                 onclearfilters={handleClearFilters}>
             </c-filter-builder>
         </div>
 
         <!-- Report Table + Export Toolbar (inside same card via slot) -->
-        <c-report-data-table
-            search-result={searchResult}
-            is-loading={isSearching}
-            page-size={pageSize}
-            current-offset={currentOffset}
-            onpagechange={handlePageChange}
-            onselectionchange={handleSelectionChange}
-            onselectallpages={handleSelectAllPages}
-            lwc:ref="dataTable">
+        <c-report-data-table search-result={searchResult} is-loading={isSearching} page-size={pageSize}
+            current-offset={currentOffset} onpagechange={handlePageChange} onselectionchange={handleSelectionChange}
+            onselectallpages={handleSelectAllPages} lwc:ref="dataTable">
 
             <!-- Export toolbar slotted inside the card -->
-            <c-export-toolbar
-                slot="export-toolbar"
-                selected-count={selectedCount}
-                is-exporting={isExporting}
+            <c-export-toolbar slot="export-toolbar" selected-count={selectedCount} is-exporting={isExporting}
                 onexportrequest={handleExportRequest}>
             </c-export-toolbar>
         </c-report-data-table>
 
-        <!-- Download Mode Modal -->
-        <template if:true={showDownloadModal}>
-            <section role="dialog" tabindex="-1" aria-modal="true"
-                class="slds-modal slds-fade-in-open">
-                <div class="slds-modal__container">
-                    <header class="slds-modal__header">
-                        <lightning-icon icon-name="utility:download" size="small"
-                            class="slds-var-m-right_x-small modal-header-icon"></lightning-icon>
-                        <h2 class="slds-modal__title">Choose Download Method</h2>
-                    </header>
-                    <div class="slds-modal__content slds-var-p-around_medium">
-                        <p class="slds-text-body_regular slds-var-m-bottom_medium">
-                            You have selected <strong>{selectedCount}</strong> report(s) in
-                            <strong>{pendingFormat}</strong> format.
-                            How would you like to download them?
-                        </p>
-                        <div class="slds-grid slds-gutters slds-grid_align-center">
-                            <div class="slds-col slds-size_1-of-2">
-                                <div class="download-option" onclick={handleDownloadZip}>
-                                    <lightning-icon icon-name="utility:package" size="large"
-                                        class="slds-var-m-bottom_small option-icon"></lightning-icon>
-                                    <h3 class="slds-text-heading_small">ZIP All Files</h3>
-                                    <p class="slds-text-body_small slds-text-color_weak">
-                                        Bundle all reports into a single ZIP archive.
-                                    </p>
-                                </div>
-                            </div>
-                            <div class="slds-col slds-size_1-of-2">
-                                <div class="download-option" onclick={handleDownloadIndividual}>
-                                    <lightning-icon icon-name="utility:download" size="large"
-                                        class="slds-var-m-bottom_small option-icon"></lightning-icon>
-                                    <h3 class="slds-text-heading_small">Download Individually</h3>
-                                    <p class="slds-text-body_small slds-text-color_weak">
-                                        Download each report as a separate file.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <footer class="slds-modal__footer">
-                        <lightning-button
-                            label="Cancel"
-                            variant="neutral"
-                            onclick={handleModalCancel}>
-                        </lightning-button>
-                    </footer>
-                </div>
-            </section>
-            <div class="slds-backdrop slds-backdrop_open"></div>
-        </template>
     </div>
 </template>

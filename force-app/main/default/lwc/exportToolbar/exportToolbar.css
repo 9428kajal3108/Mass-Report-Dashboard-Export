@@ -1,34 +1,86 @@
-.export-bar {
-    border-top: 1px solid #dddbda;
-    background: #f8f9fa;
-    padding: 0.6rem 1rem;
+:host {
+    display: block;
 }
 
-.export-bar__inner {
+.export-panel {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+}
+
+.export-panel__header {
+    border-bottom: 1px solid #e2e8f0;
+    padding-bottom: 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+.header-content {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.5rem;
 }
 
-.count-badge {
-    white-space: nowrap;
-    font-size: 0.8125rem;
-}
-
-.format-select-wrap {
-    width: 150px;
-    min-width: 140px;
-}
-
-.export-btn-wrap {
+.header-title-group {
     display: flex;
     align-items: center;
+}
+
+.export-icon {
+    --sds-c-icon-color-foreground-default: #0070d2;
+}
+
+.export-panel__title {
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0;
+}
+
+.badge-pill {
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.2;
+    padding: 0.2rem 0.6rem;
+    border-radius: 12px;
+}
+
+.export-panel__body {
+    display: flex;
+    flex-direction: column;
+}
+
+.zip-help-text {
+    font-size: 0.75rem;
+    padding-left: 1.5rem;
+    margin-top: 0.25rem;
 }
 
 .limit-warning-wrap {
     display: flex;
     align-items: center;
-    color: #b95000;
-    font-size: 0.8125rem;
+    background: #fffbeb;
+    border: 1px solid #fef3c7;
+    border-radius: 6px;
+    padding: 0.5rem 0.75rem;
+    color: #b45309;
+    font-size: 0.75rem;
+}
+
+.export-action-wrap {
+    margin-top: 1rem;
+    position: relative;
+}
+
+.export-submit-btn {
+    width: 100%;
+    display: block;
+}
+
+.export-spinner-wrap {
+    min-height: 2rem;
+    position: relative;
 }

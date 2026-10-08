@@ -1,13 +1,13 @@
 .app-container {
     max-width: 1400px;
     margin: 0 auto;
-    padding: 1rem;
+    /* padding: 1rem; */
 }
 
 .app-header {
     background: linear-gradient(135deg, #0070d2 0%, #032d60 100%);
     border-radius: 8px;
-    padding: 1.5rem 2rem;
+    padding: 1rem 1.5rem;
     margin-bottom: 1rem;
     color: white;
 }
@@ -19,30 +19,4 @@
 
 .app-header lightning-icon {
     --sds-c-icon-color-foreground-default: white;
-}
-
-/* Download mode modal */
-.modal-header-icon {
-    vertical-align: middle;
-}
-
-.download-option {
-    border: 2px solid #dddbda;
-    border-radius: 8px;
-    padding: 1.5rem 1rem;
-    text-align: center;
-    cursor: pointer;
-    transition: border-color 0.15s, box-shadow 0.15s;
-    background: #fff;
-}
-
-.download-option:hover {
-    border-color: #0070d2;
-    box-shadow: 0 2px 8px rgba(0,112,210,0.15);
-}
-
-.option-icon {
-    display: block;
-    margin: 0 auto 0.5rem;
-    --sds-c-icon-color-foreground-default: #0070d2;
 }

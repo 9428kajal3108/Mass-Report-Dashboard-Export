@@ -1,53 +1,67 @@
 <template>
-    <div class="export-bar">
-        <div class="export-bar__inner">
+    <div class="export-panel">
+        <div class="export-panel__header">
+            <div class="header-content">
+                <div class="header-title-group">
+                    <lightning-icon icon-name="utility:download" size="small"
+                        class="slds-var-m-right_x-small export-icon"></lightning-icon>
+                    <h2 class="slds-text-heading_small export-panel__title">Export Options</h2>
+                </div>
+                <span class={selectedBadgeClass}>{selectedBadgeLabel}</span>
+            </div>
+        </div>
 
-            <!-- Selected count badge -->
-            <span class="slds-badge slds-badge_lightest count-badge">
-                <lightning-icon icon-name="utility:check" size="xx-small"
-                    class="slds-var-m-right_xx-small"></lightning-icon>
-                {selectedLabel}
-            </span>
-
-            <!-- Format selector -->
-            <div class="format-select-wrap">
+        <div class="export-panel__body">
+            <!-- Download type selector: Excel or CSV -->
+            <div class="slds-form-element slds-var-m-bottom_medium">
                 <lightning-combobox
                     name="exportFormat"
-                    label="Format"
-                    variant="label-hidden"
+                    label="Download Type"
                     value={selectedFormat}
                     options={formatOptions}
                     onchange={handleFormatChange}>
                 </lightning-combobox>
             </div>
 
+            <!-- Checkbox for ZIP vs Individual -->
+            <div class="slds-form-element slds-var-m-bottom_medium">
+                <lightning-input
+                    type="checkbox"
+                    label="Download as ZIP"
+                    checked={isZip}
+                    onchange={handleZipChange}>
+                </lightning-input>
+                <div class="zip-help-text slds-var-m-top_xxx-small slds-text-color_weak">
+                    If unchecked, reports download as individual files.
+                </div>
+            </div>
+
+            <!-- Limit warning if > 50 reports -->
+            <template if:true={showLimitWarning}>
+                <div class="limit-warning-wrap slds-var-m-bottom_medium">
+                    <lightning-icon icon-name="utility:warning" size="x-small"
+                        class="slds-var-m-right_xx-small"></lightning-icon>
+                    <span class="slds-text-body_small">Max 50 reports. Only first 50 will be exported.</span>
+                </div>
+            </template>
+
             <!-- Export button -->
-            <div class="export-btn-wrap">
+            <div class="export-action-wrap">
                 <lightning-button
                     label={exportButtonLabel}
                     variant="brand"
                     icon-name="utility:download"
                     icon-position="left"
                     disabled={isExportDisabled}
-                    onclick={handleExport}>
+                    onclick={handleExport}
+                    class="slds-button_stretch export-submit-btn">
                 </lightning-button>
                 <template if:true={isExporting}>
-                    <lightning-spinner
-                        alternative-text="Exporting..."
-                        size="small"
-                        class="slds-var-m-left_x-small">
-                    </lightning-spinner>
+                    <div class="export-spinner-wrap slds-var-m-top_x-small slds-align_absolute-center">
+                        <lightning-spinner alternative-text="Exporting reports..." size="small"></lightning-spinner>
+                    </div>
                 </template>
             </div>
-
-            <!-- Limit warning -->
-            <template if:true={showLimitWarning}>
-                <div class="limit-warning-wrap">
-                    <lightning-icon icon-name="utility:warning" size="x-small"
-                        class="slds-var-m-right_xx-small"></lightning-icon>
-                    <span class="slds-text-body_small">Max 50 reports. Only first 50 will be exported.</span>
-                </div>
-            </template>
         </div>
     </div>
 </template>

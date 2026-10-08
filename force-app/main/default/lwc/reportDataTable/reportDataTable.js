@@ -47,9 +47,10 @@ export default class ReportDataTable extends LightningElement {
 
     get isEmpty() {
         return !this.isLoading
-            && this.searchResult
-            && this.searchResult.success
-            && (!this.searchResult.records || this.searchResult.records.length === 0);
+            && (
+                !this.searchResult ||
+                (this.searchResult.success && (!this.searchResult.records || this.searchResult.records.length === 0))
+            );
     }
 
     get hasError() {
