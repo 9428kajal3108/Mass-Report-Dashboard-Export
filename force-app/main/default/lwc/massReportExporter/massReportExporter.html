@@ -1,33 +1,67 @@
 <template>
     <div class="app-container">
-        <!-- Header -->
-        <div class="app-header slds-grid slds-align_absolute-center">
-            <div class="slds-col">
-                <h1 class="slds-text-heading_large">
-                    <lightning-icon icon-name="standard:report" size="small"
-                        class="slds-var-m-right_small"></lightning-icon>
-                    {cardTitle}
-                </h1>
-                <p class="slds-text-body_small slds-text-color_weak slds-var-m-top_xx-small">
-                    Filter, select, and bulk-download Salesforce Reports/Dashbaord as Excel or CSV.
-                </p>
+
+        <!-- ══ HEADER ══ -->
+        <div class="app-header">
+            <div class="app-header__inner">
+                <div class="app-header__icon-title">
+                    <lightning-icon
+                        icon-name={headerIcon}
+                        size="medium"
+                        class="header-icon">
+                    </lightning-icon>
+                    <div class="app-header__text">
+                        <h1 class="slds-text-heading_large app-title">{cardTitle}</h1>
+                        <p class="slds-text-body_small app-subtitle">{headerSubtitle}</p>
+                    </div>
+                </div>
+
+                <!-- Mode Switcher: Reports | Dashboards -->
+                <div class="mode-switcher">
+                    <button
+                        class={reportsModeClass}
+                        onclick={switchToReports}
+                        title="Switch to Reports mode">
+                        <lightning-icon icon-name="standard:report" size="x-small" class="mode-btn-icon"></lightning-icon>
+                        Reports
+                    </button>
+                    <button
+                        class={dashboardsModeClass}
+                        onclick={switchToDashboards}
+                        title="Switch to Dashboards mode">
+                        <lightning-icon icon-name="standard:dashboard" size="x-small" class="mode-btn-icon"></lightning-icon>
+                        Dashboards
+                    </button>
+                </div>
             </div>
         </div>
 
-        <!-- Filter Panel -->
-        <div class="slds-var-m-bottom_medium">
-            <c-filter-builder fields={reportFields} onsearchrequest={handleSearchRequest}
-                onclearfilters={handleClearFilters}>
-            </c-filter-builder>
-        </div>
+        <!-- ══ FILTER PANEL ══ -->
+        <c-filter-builder
+            fields={activeFields}
+            object-mode={currentMode}
+            onsearchrequest={handleSearchRequest}
+            onclearfilters={handleClearFilters}>
+        </c-filter-builder>
 
-        <!-- Report Table + Export Toolbar (inside same card via slot) -->
-        <c-report-data-table search-result={searchResult} is-loading={isSearching} page-size={pageSize}
-            current-offset={currentOffset} onpagechange={handlePageChange} onselectionchange={handleSelectionChange}
-            onselectallpages={handleSelectAllPages} lwc:ref="dataTable">
+        <!-- ══ RESULTS + EXPORT ══ -->
+        <c-report-data-table
+            search-result={searchResult}
+            is-loading={isSearching}
+            page-size={pageSize}
+            current-offset={currentOffset}
+            object-mode={currentMode}
+            onpagechange={handlePageChange}
+            onselectionchange={handleSelectionChange}
+            onselectallpages={handleSelectAllPages}
+            lwc:ref="dataTable">
 
             <!-- Export toolbar slotted inside the card -->
-            <c-export-toolbar slot="export-toolbar" selected-count={selectedCount} is-exporting={isExporting}
+            <c-export-toolbar
+                slot="export-toolbar"
+                selected-count={selectedCount}
+                is-exporting={isExporting}
+                object-mode={currentMode}
                 onexportrequest={handleExportRequest}>
             </c-export-toolbar>
         </c-report-data-table>

@@ -1,33 +1,56 @@
 import { LightningElement, api, track } from 'lwc';
-import validateSOQL from '@salesforce/apex/ReportQueryService.validateSOQL';
+import validateSOQL          from '@salesforce/apex/ReportQueryService.validateSOQL';
+import validateDashboardSOQL from '@salesforce/apex/DashboardQueryService.validateDashboardSOQL';
 
 let _nextId = 0;
 const newCondition = () => ({ id: ++_nextId, field: '', operator: '', value: '' });
 
 export default class FilterBuilder extends LightningElement {
+
     /** Field descriptors from parent (loaded via @wire in root). */
     @api fields = [];
 
-    @track mode       = 'builder'; // 'builder' | 'raw'
-    @track conditions = [newCondition()];
-    @track logic      = 'AND';
-    @track rawSOQL    = '';
-    @track isValidating   = false;
+    @track mode            = 'builder'; // 'builder' | 'raw'
+    @track conditions      = [newCondition()];
+    @track logic           = 'AND';
+    @track rawSOQL         = '';
+    @track isValidating    = false;
     @track validationError = '';
-    @track isValidated    = false;
+    @track isValidated     = false;
 
     // ─── Getters ──────────────────────────────────────────────────────────────
 
-    get isBuilderMode()    { return this.mode === 'builder'; }
-    get isRawMode()        { return this.mode === 'raw'; }
-    get showLogicToggle()  { return this.conditions.length > 1; }
-    get hasConditions()    {
+    get isReportsMode()    { return this.objectMode === 'reports'; }
+    get isDashboardsMode() { return this.objectMode === 'dashboards'; }
+
+    get cardTitle()    {
+        return this.isDashboardsMode ? 'Filter Dashboards' : 'Filter Reports';
+    }
+    get cardIconName() {
+        return this.isDashboardsMode ? 'utility:filter' : 'utility:filter';
+    }
+
+    get searchButtonLabel() {
+        return this.isDashboardsMode ? 'Search Dashboards' : 'Search Reports';
+    }
+
+    get soqlPlaceholder() {
+        if (this.isDashboardsMode) {
+            return 'SELECT Id, Title, DeveloperName, FolderName FROM Dashboard WHERE ...';
+        }
+        return 'SELECT Id, Name, DeveloperName, FolderName FROM Report WHERE ...';
+    }
+
+    get isBuilderMode()   { return this.mode === 'builder'; }
+    get isRawMode()       { return this.mode === 'raw'; }
+    get showLogicToggle() { return this.conditions.length > 1; }
+    get hasConditions()   {
         return this.conditions.some(c => c.field && c.operator);
     }
-    get builderVariant()   { return this.mode === 'builder' ? 'brand' : 'neutral'; }
-    get rawVariant()       { return this.mode === 'raw'     ? 'brand' : 'neutral'; }
-    get andVariant()       { return this.logic === 'AND' ? 'brand' : 'neutral'; }
-    get orVariant()        { return this.logic === 'OR'  ? 'brand' : 'neutral'; }
+    get builderVariant()  { return this.mode === 'builder' ? 'brand' : 'neutral'; }
+    get rawVariant()      { return this.mode === 'raw'     ? 'brand' : 'neutral'; }
+    get andVariant()      { return this.logic === 'AND' ? 'brand' : 'neutral'; }
+    get orVariant()       { return this.logic === 'OR'  ? 'brand' : 'neutral'; }
 
     /** Conditions enriched with isLast flag so the last row shows the inline add button. */
     get conditionsWithMeta() {
@@ -42,15 +65,38 @@ export default class FilterBuilder extends LightningElement {
         return !this.hasConditions;
     }
 
-    get generatedSOQL() {
-        const validConds = this.conditions.filter(c => c.field && c.operator);
-        if (!validConds.length) return 'SELECT Id, Name, DeveloperName, FolderName FROM Report';
-        const whereParts = validConds.map(c => {
-            if (!c.field || !c.operator) return null;
-            return c.field + ' ' + c.operator + (c.value ? ' \'' + c.value + '\'' : '');
-        }).filter(Boolean);
-        return 'SELECT Id, Name, DeveloperName, FolderName FROM Report WHERE '
-            + whereParts.join(' ' + this.logic + ' ');
+    // ─── Lifecycle ────────────────────────────────────────────────────────────
+
+    /**
+     * When objectMode changes (Reports ↔ Dashboards), reset the filter state
+     * so stale conditions from the previous mode are cleared.
+     */
+    connectedCallback() {
+        this._resetState();
+    }
+
+    // Watch for objectMode changes from parent
+    @api
+    get objectMode() {
+        return this._objectMode;
+    }
+    set objectMode(value) {
+        const prev = this._objectMode;
+        this._objectMode = value;
+        if (prev !== undefined && prev !== value) {
+            this._resetState();
+        }
+    }
+
+    _objectMode = 'reports';
+
+    _resetState() {
+        this.conditions      = [newCondition()];
+        this.logic           = 'AND';
+        this.rawSOQL         = '';
+        this.mode            = 'builder';
+        this.isValidated     = false;
+        this.validationError = '';
     }
 
     // ─── Mode Switching ───────────────────────────────────────────────────────
@@ -106,7 +152,13 @@ export default class FilterBuilder extends LightningElement {
         this.validationError = '';
         this.isValidated     = false;
         try {
-            const result = await validateSOQL({ rawSOQL: this.rawSOQL });
+            let result;
+            if (this.isDashboardsMode) {
+                result = await validateDashboardSOQL({ rawSOQL: this.rawSOQL });
+            } else {
+                result = await validateSOQL({ rawSOQL: this.rawSOQL });
+            }
+
             if (result.valid) {
                 this.isValidated     = true;
                 this.validationError = '';
@@ -136,12 +188,7 @@ export default class FilterBuilder extends LightningElement {
     }
 
     handleClear() {
-        this.conditions    = [newCondition()];
-        this.logic         = 'AND';
-        this.rawSOQL       = '';
-        this.isValidated   = false;
-        this.validationError = '';
-        this.mode          = 'builder';
+        this._resetState();
         this.dispatchEvent(new CustomEvent('clearfilters', { bubbles: true }));
     }
 }

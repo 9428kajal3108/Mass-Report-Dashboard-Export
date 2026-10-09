@@ -2,7 +2,7 @@
     <div class="slds-grid slds-gutters_x-small slds-grid_vertical-align-center filter-row">
 
         <!-- Field selector -->
-        <div class="slds-col" style="max-width:180px; min-width:130px;">
+        <div class="slds-col filter-field-col">
             <lightning-combobox
                 name="field"
                 label="Field"
@@ -15,7 +15,7 @@
         </div>
 
         <!-- Operator selector -->
-        <div class="slds-col" style="max-width:155px; min-width:110px;">
+        <div class="slds-col filter-operator-col">
             <lightning-combobox
                 name="operator"
                 label="Operator"
@@ -29,7 +29,7 @@
         </div>
 
         <!-- Value input -->
-        <div class="slds-col" style="max-width:210px; min-width:110px;">
+        <div class="slds-col filter-value-col">
             <template if:false={isValueHidden}>
                 <lightning-input
                     name="value"
@@ -41,16 +41,15 @@
                 </lightning-input>
             </template>
             <template if:true={isValueHidden}>
-                <span class="slds-text-color_weak slds-text-body_small"
-                      style="display:block;padding-top:8px;">No value needed</span>
+                <div class="no-value-placeholder">No value needed</div>
             </template>
         </div>
 
         <!-- Remove button -->
-        <div class="slds-col slds-no-flex slds-align_absolute-center">
+        <div class="slds-col slds-no-flex filter-action-col">
             <lightning-button-icon
                 icon-name="utility:delete"
-                variant="bare"
+                variant="border-filled"
                 alternative-text="Remove condition"
                 title="Remove this condition"
                 size="small"
@@ -58,12 +57,13 @@
             </lightning-button-icon>
         </div>
 
-        <!-- + Add Condition (only on last row) - inline in same line -->
+        <!-- + Add Condition (only on last row) -->
         <template if:true={showAddButton}>
-            <div class="slds-col slds-no-flex slds-var-m-left_xx-small">
+            <div class="slds-col slds-no-flex filter-action-col">
                 <lightning-button
                     label="+ Add Condition"
                     variant="neutral"
+                    icon-name="utility:add"
                     onclick={handleAdd}>
                 </lightning-button>
             </div>

@@ -1,10 +1,10 @@
 /**
- * @description Service for querying Salesforce Reports with dynamic filter conditions.
+ * @description Service for querying Salesforce Dashboards with dynamic filter conditions.
+ *              Only returns Dashboards the running user has access to (WITH USER_MODE).
  *              Supports condition-builder mode and validated raw-SOQL mode.
- *              All queries run with sharing to respect org visibility rules.
  * @group       MassReportExporter
  */
-public with sharing class ReportQueryService {
+public with sharing class DashboardQueryService {
 
     // ─── Inner DTOs ───────────────────────────────────────────────────────────
 
@@ -15,23 +15,24 @@ public with sharing class ReportQueryService {
         @AuraEnabled public String value    { get; set; }
     }
 
-    /** One report row returned to the datatable. */
-    public class ReportRecord {
+    /** One dashboard row returned to the datatable. */
+    public class DashboardRecord {
         @AuraEnabled public String id            { get; set; }
         @AuraEnabled public String name          { get; set; }
         @AuraEnabled public String developerName { get; set; }
         @AuraEnabled public String folderName    { get; set; }
+        @AuraEnabled public String type          { get; set; }
     }
 
     /** Paginated search result wrapper. */
-    public class ReportSearchResult {
-        @AuraEnabled public List<ReportRecord> records      { get; set; }
-        @AuraEnabled public Integer            totalCount   { get; set; }
-        @AuraEnabled public Boolean            success      { get; set; }
-        @AuraEnabled public String             errorMessage { get; set; }
+    public class DashboardSearchResult {
+        @AuraEnabled public List<DashboardRecord> records      { get; set; }
+        @AuraEnabled public Integer               totalCount   { get; set; }
+        @AuraEnabled public Boolean               success      { get; set; }
+        @AuraEnabled public String                errorMessage { get; set; }
 
-        public ReportSearchResult() {
-            this.records      = new List<ReportRecord>();
+        public DashboardSearchResult() {
+            this.records      = new List<DashboardRecord>();
             this.totalCount   = 0;
             this.success      = true;
             this.errorMessage = '';
@@ -44,7 +45,7 @@ public with sharing class ReportQueryService {
         @AuraEnabled public String  errorMessage { get; set; }
     }
 
-    /** Field descriptor for filter-builder dropdowns. Implements Comparable for label-sort. */
+    /** Field descriptor for filter-builder dropdowns. */
     public class FieldDescriptor implements Comparable {
         @AuraEnabled public String apiName { get; set; }
         @AuraEnabled public String label   { get; set; }
@@ -61,29 +62,35 @@ public with sharing class ReportQueryService {
     @TestVisible private static final Integer DEFAULT_PAGE_SIZE = 10;
     @TestVisible private static final Integer MAX_QUERY_LIMIT   = 2000;
 
-    private static final String BASE_SELECT   = 'SELECT Id, Name, DeveloperName, FolderName FROM Report';
-    private static final String DEFAULT_ORDER = ' ORDER BY Name ASC';
+    private static final String BASE_SELECT   = 'SELECT Id, Title, DeveloperName, FolderName, Type FROM Dashboard';
+    private static final String DEFAULT_ORDER = ' ORDER BY Title ASC';
 
     private static final Set<String> BLOCKED_KEYWORDS = new Set<String>{
         ';', '--', '/*', '*/', 'delete', 'update', 'insert',
         'upsert', 'merge', 'union', 'drop', 'alter', 'truncate'
     };
 
+    // Allowed queryable fields for Dashboard in filter builder
+    private static final Set<String> ALLOWED_FIELDS = new Set<String>{
+        'title', 'developername', 'foldername', 'type', 'description',
+        'lastmodifieddate', 'createddate', 'ownerid', 'folderid'
+    };
+
     // ─── Public AuraEnabled Methods ───────────────────────────────────────────
 
     /**
-     * @description Returns all accessible fields on the Report sObject,
-     *              sorted by label, for populating the filter-builder field dropdown.
+     * @description Returns queryable Dashboard fields for the filter-builder dropdown.
      */
     @AuraEnabled(cacheable=true)
-    public static List<FieldDescriptor> getReportFields() {
+    public static List<FieldDescriptor> getDashboardFields() {
         List<FieldDescriptor> fields = new List<FieldDescriptor>();
         Map<String, Schema.SObjectField> fieldMap =
-            Schema.SObjectType.Report.fields.getMap();
+            Schema.SObjectType.Dashboard.fields.getMap();
 
         for (Schema.SObjectField sof : fieldMap.values()) {
             Schema.DescribeFieldResult dfr = sof.getDescribe();
-            if (!dfr.isAccessible()) { continue; }
+            if (!dfr.isAccessible())                            { continue; }
+            if (!ALLOWED_FIELDS.contains(dfr.getName().toLowerCase())) { continue; }
             FieldDescriptor fd = new FieldDescriptor();
             fd.apiName = dfr.getName();
             fd.label   = dfr.getLabel();
@@ -95,27 +102,29 @@ public with sharing class ReportQueryService {
     }
 
     /**
-     * @description Runs a server-side paginated query from UI-built filter conditions.
+     * @description Runs a server-side paginated query for Dashboards the current user can access.
+     *              Uses WITH USER_MODE to enforce field-level and record-level sharing rules.
+     *
      * @param conditionsJson  JSON array of FilterCondition objects
      * @param logic           'AND' or 'OR'
      * @param pageSize        Records per page
      * @param offset          Zero-based pagination offset
      */
     @AuraEnabled
-    public static ReportSearchResult searchReports(
+    public static DashboardSearchResult searchDashboards(
         String  conditionsJson,
         String  logic,
         Integer pageSize,
         Integer offset
     ) {
-        ReportSearchResult result = new ReportSearchResult();
+        DashboardSearchResult result = new DashboardSearchResult();
         try {
             List<FilterCondition> conditions = deserializeConditions(conditionsJson);
             String whereClause = buildWhereClause(conditions, logic);
 
-            // AccessLevel.USER_MODE enforces record-level sharing and permissions
+            // AccessLevel.USER_MODE ensures only dashboards the user can read are returned
             result.totalCount = Database.countQuery(
-                'SELECT COUNT() FROM Report' + whereClause,
+                'SELECT COUNT() FROM Dashboard' + whereClause,
                 AccessLevel.USER_MODE
             );
 
@@ -123,7 +132,7 @@ public with sharing class ReportQueryService {
                 + ' LIMIT '  + safePage(pageSize)
                 + ' OFFSET ' + safeOff(offset);
 
-            result.records = toRecordList((List<Report>) Database.query(query, AccessLevel.USER_MODE));
+            result.records = toRecordList((List<Dashboard>) Database.query(query, AccessLevel.USER_MODE));
         } catch (Exception ex) {
             result.success      = false;
             result.errorMessage = ex.getMessage();
@@ -132,31 +141,28 @@ public with sharing class ReportQueryService {
     }
 
     /**
-     * @description Returns all Report IDs matching the current filter (no pagination).
+     * @description Returns all accessible Dashboard IDs matching the current filter (no pagination).
      *              Used for "Select All N Records across pages" feature.
      */
     @AuraEnabled
-    public static List<String> getAllReportIds(String conditionsJson, String logic) {
+    public static List<String> getAllDashboardIds(String conditionsJson, String logic) {
         List<FilterCondition> conditions = deserializeConditions(conditionsJson);
         String whereClause = buildWhereClause(conditions, logic);
-        String query = 'SELECT Id FROM Report' + whereClause
+        String query = 'SELECT Id FROM Dashboard' + whereClause
             + DEFAULT_ORDER + ' LIMIT ' + MAX_QUERY_LIMIT;
 
         List<String> ids = new List<String>();
-        for (Report r : (List<Report>) Database.query(query, AccessLevel.USER_MODE)) {
-            ids.add(r.Id);
+        for (Dashboard d : (List<Dashboard>) Database.query(query, AccessLevel.USER_MODE)) {
+            ids.add(d.Id);
         }
         return ids;
     }
 
     /**
-     * @description Validates a raw SOQL string with 5 checks:
-     *              (1) blank guard, (2) injection keyword blocklist,
-     *              (3) Report-object whitelist, (4) governor LIMIT guard,
-     *              (5) Database.query parse-check.
+     * @description Validates a raw SOQL string targeting Dashboard object.
      */
     @AuraEnabled
-    public static SOQLValidationResult validateSOQL(String rawSOQL) {
+    public static SOQLValidationResult validateDashboardSOQL(String rawSOQL) {
         SOQLValidationResult result = new SOQLValidationResult();
         result.valid        = false;
         result.errorMessage = '';
@@ -177,9 +183,9 @@ public with sharing class ReportQueryService {
             }
         }
 
-        // 2. Object whitelist — must target Report
-        if (!normalized.contains('from report')) {
-            result.errorMessage = 'Query must target the Report object (FROM Report).';
+        // 2. Object whitelist — must target Dashboard
+        if (!normalized.contains('from dashboard')) {
+            result.errorMessage = 'Query must target the Dashboard object (FROM Dashboard).';
             return result;
         }
 
@@ -189,7 +195,7 @@ public with sharing class ReportQueryService {
             finalQuery += ' LIMIT ' + MAX_QUERY_LIMIT;
         }
 
-        // 4. Parse check
+        // 4. Parse check (AccessLevel.USER_MODE for safety)
         try {
             Database.query(finalQuery, AccessLevel.USER_MODE);
             result.valid = true;
@@ -201,18 +207,18 @@ public with sharing class ReportQueryService {
     }
 
     /**
-     * @description Executes a validated raw SOQL with server-side pagination.
-     *              Re-validates on server — never trust client-side state alone.
+     * @description Executes a validated raw SOQL for Dashboard with server-side pagination.
+     *              Enforces AccessLevel.USER_MODE so only accessible dashboards are returned.
      */
     @AuraEnabled
-    public static ReportSearchResult searchReportsByRawSOQL(
+    public static DashboardSearchResult searchDashboardsByRawSOQL(
         String  rawSOQL,
         Integer pageSize,
         Integer offset
     ) {
-        ReportSearchResult result = new ReportSearchResult();
+        DashboardSearchResult result = new DashboardSearchResult();
         try {
-            SOQLValidationResult v = validateSOQL(rawSOQL);
+            SOQLValidationResult v = validateDashboardSOQL(rawSOQL);
             if (!v.valid) {
                 result.success      = false;
                 result.errorMessage = v.errorMessage;
@@ -223,7 +229,7 @@ public with sharing class ReportQueryService {
             String whereClause = extractWhereClause(rawSOQL, normalized);
 
             result.totalCount = Database.countQuery(
-                'SELECT COUNT() FROM Report' + whereClause,
+                'SELECT COUNT() FROM Dashboard' + whereClause,
                 AccessLevel.USER_MODE
             );
 
@@ -231,7 +237,7 @@ public with sharing class ReportQueryService {
                 + ' LIMIT '  + safePage(pageSize)
                 + ' OFFSET ' + safeOff(offset);
 
-            result.records = toRecordList((List<Report>) Database.query(query, AccessLevel.USER_MODE));
+            result.records = toRecordList((List<Dashboard>) Database.query(query, AccessLevel.USER_MODE));
         } catch (Exception ex) {
             result.success      = false;
             result.errorMessage = ex.getMessage();
@@ -253,13 +259,10 @@ public with sharing class ReportQueryService {
     ) {
         if (conditions == null || conditions.isEmpty()) { return ''; }
 
-        Set<String> validFields =
-            Schema.SObjectType.Report.fields.getMap().keySet();
-
         List<String> clauses = new List<String>();
         for (FilterCondition c : conditions) {
             if (String.isBlank(c.field))                            { continue; }
-            if (!validFields.contains(c.field.toLowerCase()))       { continue; }
+            if (!ALLOWED_FIELDS.contains(c.field.toLowerCase()))    { continue; }
             String clause = buildSingleClause(c);
             if (String.isNotBlank(clause)) { clauses.add(clause); }
         }
@@ -288,12 +291,8 @@ public with sharing class ReportQueryService {
             when 'does not contain'{ return '(NOT ' + f + ' LIKE \'%' + String.escapeSingleQuotes(v) + '%\')'; }
             when 'in'              { return f + ' IN ('     + quoteList(v) + ')'; }
             when 'not in'          { return f + ' NOT IN (' + quoteList(v) + ')'; }
-            when 'includes'        { return f + ' INCLUDES (' + quoteList(v) + ')'; }
-            when 'excludes'        { return f + ' EXCLUDES (' + quoteList(v) + ')'; }
             when '= null'          { return f + ' = null'; }
             when '!= null'         { return f + ' != null'; }
-            when '= true'          { return f + ' = true'; }
-            when '= false'         { return f + ' = false'; }
             when else              { return ''; }
         }
     }
@@ -311,20 +310,20 @@ public with sharing class ReportQueryService {
         if (!normalized.contains('where')) { return ''; }
         Integer whereIdx = normalized.indexOf('where');
         String afterWhere = rawSOQL.substring(whereIdx);
-        // Strip ORDER BY / LIMIT / OFFSET / GROUP BY that may follow
-        afterWhere = afterWhere.replaceAll('(?i)\\s+(ORDER\\s+BY|LIMIT|OFFSET|GROUP\\s+BY).*', '');
+        afterWhere = afterWhere.replaceAll('(?i)\\s+(ORDER\\s+BY|LIMIT|OFFSET|GROUP\\s+BY|WITH).*', '');
         return ' ' + afterWhere.trim();
     }
 
-    private static List<ReportRecord> toRecordList(List<Report> reports) {
-        List<ReportRecord> records = new List<ReportRecord>();
-        for (Report r : reports) {
-            ReportRecord rr  = new ReportRecord();
-            rr.id            = r.Id;
-            rr.name          = r.Name;
-            rr.developerName = r.DeveloperName;
-            rr.folderName    = r.FolderName;
-            records.add(rr);
+    private static List<DashboardRecord> toRecordList(List<Dashboard> dashboards) {
+        List<DashboardRecord> records = new List<DashboardRecord>();
+        for (Dashboard d : dashboards) {
+            DashboardRecord dr  = new DashboardRecord();
+            dr.id            = d.Id;
+            dr.name          = d.Title;
+            dr.developerName = d.DeveloperName;
+            dr.folderName    = d.FolderName;
+            dr.type          = d.Type;
+            records.add(dr);
         }
         return records;
     }

@@ -1,29 +1,52 @@
 <template>
     <div class="export-panel">
+
+        <!-- Panel Header -->
         <div class="export-panel__header">
             <div class="header-content">
                 <div class="header-title-group">
                     <lightning-icon icon-name="utility:download" size="small"
-                        class="slds-var-m-right_x-small export-icon"></lightning-icon>
+                        class="slds-var-m-right_x-small export-icon">
+                    </lightning-icon>
                     <h2 class="slds-text-heading_small export-panel__title">Export Options</h2>
                 </div>
                 <span class={selectedBadgeClass}>{selectedBadgeLabel}</span>
             </div>
         </div>
 
+        <!-- Panel Body -->
         <div class="export-panel__body">
-            <!-- Download type selector: Excel or CSV -->
-            <div class="slds-form-element slds-var-m-bottom_medium">
-                <lightning-combobox
-                    name="exportFormat"
-                    label="Download Type"
-                    value={selectedFormat}
-                    options={formatOptions}
-                    onchange={handleFormatChange}>
-                </lightning-combobox>
-            </div>
 
-            <!-- Checkbox for ZIP vs Individual -->
+            <!-- ── REPORTS MODE: Format selector (Excel / CSV) ── -->
+            <template if:true={isReportsMode}>
+                <div class="slds-form-element slds-var-m-bottom_medium">
+                    <lightning-combobox
+                        name="exportFormat"
+                        label="Download Type"
+                        value={selectedFormat}
+                        options={formatOptions}
+                        onchange={handleFormatChange}>
+                    </lightning-combobox>
+                </div>
+            </template>
+
+            <!-- ── DASHBOARDS MODE: Format indicator (JPG only) ── -->
+            <template if:true={isDashboardsMode}>
+                <div class="format-badge-row slds-var-m-bottom_medium">
+                    <span class="slds-text-body_small slds-text-color_weak format-label">Download Type</span>
+                    <div class="format-badge">
+                        <lightning-icon icon-name="utility:image" size="x-small"
+                            class="slds-var-m-right_xx-small format-badge-icon">
+                        </lightning-icon>
+                        <span>Image (JPG)</span>
+                    </div>
+                    <p class="slds-text-body_small slds-text-color_weak format-note">
+                        Dashboards are exported as JPG screenshots.
+                    </p>
+                </div>
+            </template>
+
+            <!-- ZIP checkbox (shown for both modes) -->
             <div class="slds-form-element slds-var-m-bottom_medium">
                 <lightning-input
                     type="checkbox"
@@ -32,16 +55,17 @@
                     onchange={handleZipChange}>
                 </lightning-input>
                 <div class="zip-help-text slds-var-m-top_xxx-small slds-text-color_weak">
-                    If unchecked, reports download as individual files.
+                    If unchecked, files download individually.
                 </div>
             </div>
 
-            <!-- Limit warning if > 50 reports -->
+            <!-- Limit warning -->
             <template if:true={showLimitWarning}>
                 <div class="limit-warning-wrap slds-var-m-bottom_medium">
                     <lightning-icon icon-name="utility:warning" size="x-small"
-                        class="slds-var-m-right_xx-small"></lightning-icon>
-                    <span class="slds-text-body_small">Max 50 reports. Only first 50 will be exported.</span>
+                        class="slds-var-m-right_xx-small">
+                    </lightning-icon>
+                    <span class="slds-text-body_small">{limitWarningText}</span>
                 </div>
             </template>
 
@@ -56,9 +80,10 @@
                     onclick={handleExport}
                     class="slds-button_stretch export-submit-btn">
                 </lightning-button>
+
                 <template if:true={isExporting}>
                     <div class="export-spinner-wrap slds-var-m-top_x-small slds-align_absolute-center">
-                        <lightning-spinner alternative-text="Exporting reports..." size="small"></lightning-spinner>
+                        <lightning-spinner alternative-text={exportingLabel} size="small"></lightning-spinner>
                     </div>
                 </template>
             </div>
