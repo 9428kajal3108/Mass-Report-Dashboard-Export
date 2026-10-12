@@ -26,20 +26,22 @@
                     <template for:each={conditionsWithMeta} for:item="cond">
                         <div key={cond.id} class="condition-block">
 
-                            <!-- AND / OR join badge between rows (not before the first) -->
+                            <!-- AND / OR join badge between rows (configured individually) -->
                             <template if:true={cond.showJoin}>
                                 <div class="join-badge-row">
                                     <div class="join-badge-line"></div>
                                     <lightning-button-group class="join-badge-group">
                                         <lightning-button
                                             label="AND"
-                                            variant={andVariant}
-                                            onclick={setAndLogic}>
+                                            variant={cond.andVariant}
+                                            data-index={cond.idx}
+                                            onclick={handleSetAndLogic}>
                                         </lightning-button>
                                         <lightning-button
                                             label="OR"
-                                            variant={orVariant}
-                                            onclick={setOrLogic}>
+                                            variant={cond.orVariant}
+                                            data-index={cond.idx}
+                                            onclick={handleSetOrLogic}>
                                         </lightning-button>
                                     </lightning-button-group>
                                     <div class="join-badge-line"></div>

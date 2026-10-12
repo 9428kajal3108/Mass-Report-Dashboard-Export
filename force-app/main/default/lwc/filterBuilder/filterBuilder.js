@@ -3,7 +3,7 @@ import validateSOQL          from '@salesforce/apex/ReportQueryService.validateS
 import validateDashboardSOQL from '@salesforce/apex/DashboardQueryService.validateDashboardSOQL';
 
 let _nextId = 0;
-const newCondition = () => ({ id: ++_nextId, field: '', operator: '', value: '' });
+const newCondition = () => ({ id: ++_nextId, field: '', operator: '', value: '', logic: 'AND' });
 
 export default class FilterBuilder extends LightningElement {
 
@@ -12,7 +12,6 @@ export default class FilterBuilder extends LightningElement {
 
     @track mode            = 'builder'; // 'builder' | 'raw'
     @track conditions      = [newCondition()];
-    @track logic           = 'AND';
     @track rawSOQL         = '';
     @track isValidating    = false;
     @track validationError = '';
@@ -51,23 +50,28 @@ export default class FilterBuilder extends LightningElement {
     }
     get builderVariant()  { return this.mode === 'builder' ? 'brand' : 'neutral'; }
     get rawVariant()      { return this.mode === 'raw'     ? 'brand' : 'neutral'; }
-    get andVariant()      { return this.logic === 'AND' ? 'brand' : 'neutral'; }
-    get orVariant()       { return this.logic === 'OR'  ? 'brand' : 'neutral'; }
 
     /**
      * Conditions enriched with:
-     *   idx      — original array index (used by filterRow for remove/change events)
-     *   showJoin — true for every row except the first, triggers AND/OR badge above it
-     *   isOnly   — true when there is exactly one condition (hides the delete button)
+     *   idx        — original array index (used by filterRow for remove/change events)
+     *   showJoin   — true for every row except the first, triggers AND/OR badge above it
+     *   isOnly     — true when there is exactly one condition (hides the delete button)
+     *   andVariant — 'brand' if this condition's join logic is AND, otherwise 'neutral'
+     *   orVariant  — 'brand' if this condition's join logic is OR, otherwise 'neutral'
      */
     get conditionsWithMeta() {
         const only = this.conditions.length === 1;
-        return this.conditions.map((c, i) => ({
-            ...c,
-            idx:      i,
-            showJoin: i > 0,
-            isOnly:   only
-        }));
+        return this.conditions.map((c, i) => {
+            const rowLogic = c.logic || 'AND';
+            return {
+                ...c,
+                idx:        i,
+                showJoin:   i > 0,
+                isOnly:     only,
+                andVariant: rowLogic === 'AND' ? 'brand' : 'neutral',
+                orVariant:  rowLogic === 'OR'  ? 'brand' : 'neutral'
+            };
+        });
     }
 
     get isSearchDisabled() {
@@ -109,7 +113,6 @@ export default class FilterBuilder extends LightningElement {
 
     _resetState() {
         this.conditions      = [newCondition()];
-        this.logic           = 'AND';
         this.rawSOQL         = this.defaultRawSOQL;
         this.mode            = 'builder';
         this.isValidated     = true; // default SOQL is valid by default
@@ -154,8 +157,19 @@ export default class FilterBuilder extends LightningElement {
         this._initialLoad = false;
     }
 
-    setAndLogic() { this.logic = 'AND'; }
-    setOrLogic()  { this.logic = 'OR'; }
+    handleSetAndLogic(event) {
+        const index = parseInt(event.target.dataset.index, 10);
+        this.conditions = this.conditions.map((c, i) =>
+            i === index ? { ...c, logic: 'AND' } : c
+        );
+    }
+
+    handleSetOrLogic(event) {
+        const index = parseInt(event.target.dataset.index, 10);
+        this.conditions = this.conditions.map((c, i) =>
+            i === index ? { ...c, logic: 'OR' } : c
+        );
+    }
 
     // ─── Raw SOQL Handlers ────────────────────────────────────────────────────
 
@@ -213,10 +227,19 @@ export default class FilterBuilder extends LightningElement {
     // ─── Private: fire searchrequest event ───────────────────────────────────
 
     _fireSearchRequest() {
+        const validConditions = this.conditions
+            .filter(c => c.field && c.operator)
+            .map(c => ({
+                field:    c.field,
+                operator: c.operator,
+                value:    c.value,
+                logic:    c.logic || 'AND'
+            }));
+
         const detail = {
             mode:       this.mode,
-            conditions: this.conditions.filter(c => c.field && c.operator),
-            logic:      this.logic,
+            conditions: validConditions,
+            logic:      'AND', // backward compatibility fallback
             rawSOQL:    this.rawSOQL
         };
         this.dispatchEvent(
