@@ -1,12 +1,10 @@
 <template>
-    <lightning-card icon-name="standard:report" title="List of Reports">
-        <div slot="actions" class="slds-grid slds-align_absolute-center slds-gutters_x-small">
-            <!-- Total count badge -->
+    <lightning-card icon-name={cardIconName} title={cardTitle}>
+        <div slot="actions" class="card-actions">
+            <!-- Total count & page info -->
             <template if:true={hasResults}>
-                <span class="slds-badge slds-var-m-right_x-small">
-                    Total: {searchResult.totalCount}
-                </span>
-                <span class="slds-text-body_small slds-text-color_weak">
+                <span class="result-badge slds-badge">{totalCountLabel}</span>
+                <span class="page-info slds-text-body_small slds-text-color_weak">
                     Page {currentPage} of {totalPages}
                 </span>
             </template>
@@ -14,20 +12,21 @@
 
         <div class="slds-var-p-horizontal_medium slds-var-p-bottom_medium">
 
-            <!-- ── 2:1 RATIO SECTION (TABLE + EXPORT PANEL) ── -->
+            <!-- ── 2:1 GRID: TABLE (left) + EXPORT PANEL (right) ── -->
             <div class="report-section-grid">
 
-                <!-- Left Side: Table & Pagination (2 parts) -->
+                <!-- ── LEFT: Table & Pagination ── -->
                 <div class="table-pane">
 
-                    <!-- ── LOADING SPINNER ── -->
+                    <!-- LOADING -->
                     <template if:true={isLoading}>
-                        <div class="slds-align_absolute-center slds-var-p-around_large">
-                            <lightning-spinner alternative-text="Loading reports..." size="medium"></lightning-spinner>
+                        <div class="state-container">
+                            <lightning-spinner alternative-text={loadingLabel} size="medium"></lightning-spinner>
+                            <p class="slds-text-body_small slds-text-color_weak state-text">{loadingLabel}</p>
                         </div>
                     </template>
 
-                    <!-- ── ERROR STATE ── -->
+                    <!-- ERROR -->
                     <template if:true={hasError}>
                         <div class="slds-notify slds-notify_alert slds-theme_error" role="alert">
                             <lightning-icon icon-name="utility:error" size="x-small"
@@ -36,40 +35,36 @@
                         </div>
                     </template>
 
-                    <!-- ── EMPTY STATE ── -->
+                    <!-- EMPTY STATE -->
                     <template if:true={isEmpty}>
-                        <div class="slds-align_absolute-center slds-var-p-around_large empty-state">
-                            <lightning-icon icon-name="utility:search" size="large"
-                                class="slds-var-m-bottom_small"></lightning-icon>
-                            <p class="slds-text-heading_small">No reports found</p>
-                            <p class="slds-text-body_small slds-text-color_weak">
-                                Use the filter above to search for reports.
-                            </p>
+                        <div class="state-container empty-state">
+                            <lightning-icon icon-name={emptyStateIcon} size="large"
+                                class="slds-var-m-bottom_small empty-icon"></lightning-icon>
+                            <p class="slds-text-heading_small empty-title">{emptyStateTitle}</p>
+                            <p class="slds-text-body_small slds-text-color_weak">{emptyStateSubtitle}</p>
                         </div>
                     </template>
 
-                    <!-- ── RESULTS TABLE ── -->
+                    <!-- RESULTS TABLE -->
                     <template if:true={hasResults}>
 
-                        <!-- Quick search bar -->
-                        <div class="slds-var-m-bottom_small slds-grid slds-grid_vertical-align-center">
-                            <div class="slds-col">
+                        <!-- Quick search -->
+                        <div class="quick-search-row">
+                            <div class="quick-search-input">
                                 <lightning-input
                                     type="search"
                                     label="Quick Search"
                                     variant="label-hidden"
-                                    placeholder="Filter by name or folder..."
+                                    placeholder={quickSearchPlaceholder}
                                     value={quickSearchTerm}
                                     onchange={handleQuickSearch}>
                                 </lightning-input>
                             </div>
-                            <div class="slds-col slds-no-flex slds-var-m-left_x-small">
-                                <template if:true={isQuickFiltered}>
-                                    <span class="slds-text-body_small slds-text-color_weak">
-                                        Showing {filteredRecords.length} of {searchResult.records.length}
-                                    </span>
-                                </template>
-                            </div>
+                            <template if:true={isQuickFiltered}>
+                                <span class="slds-text-body_small slds-text-color_weak quick-filter-count">
+                                    Showing {filteredRecords.length} of {searchResult.records.length}
+                                </span>
+                            </template>
                         </div>
 
                         <!-- Select-all-across-pages banner -->
@@ -111,7 +106,7 @@
                             </lightning-datatable>
                         </div>
 
-                        <!-- Pagination controls: page length on left corner, pagination on center -->
+                        <!-- Pagination footer -->
                         <div class="table-pagination-footer">
                             <div class="pagination-left-corner">
                                 <span class="slds-text-body_small slds-var-m-right_x-small">View</span>
@@ -153,13 +148,14 @@
                             </div>
 
                             <div class="pagination-right-balance">
-                                <!-- Balance spacer to maintain true center for pagination buttons -->
+                                <!-- Balance spacer -->
                             </div>
                         </div>
+
                     </template>
                 </div>
 
-                <!-- Right Side: Download & Export Panel (1 part) -->
+                <!-- ── RIGHT: Export Panel ── -->
                 <div class="export-pane">
                     <slot name="export-toolbar"></slot>
                 </div>

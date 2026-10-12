@@ -1,3 +1,40 @@
 .filter-row {
-    margin-bottom: 0.4rem;
+    margin-bottom: 0.625rem;
+    align-items: center;
+    flex-wrap: wrap;
+    row-gap: 0.5rem;
+}
+
+.filter-field-col {
+    flex: 1 1 200px;
+    min-width: 160px;
+    max-width: 260px;
+}
+
+.filter-operator-col {
+    flex: 1 1 170px;
+    min-width: 140px;
+    max-width: 200px;
+}
+
+.filter-value-col {
+    flex: 2 1 220px;
+    min-width: 160px;
+}
+
+.filter-action-col {
+    display: flex;
+    align-items: center;
+}
+
+.no-value-placeholder {
+    height: 32px;
+    display: flex;
+    align-items: center;
+    padding: 0 0.75rem;
+    font-size: 0.8125rem;
+    color: #706e6b;
+    background-color: #f3f3f3;
+    border: 1px dashed #dddbda;
+    border-radius: 4px;
 }

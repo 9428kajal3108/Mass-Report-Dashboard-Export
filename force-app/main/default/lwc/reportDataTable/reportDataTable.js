@@ -1,9 +1,16 @@
 import { LightningElement, api, track } from 'lwc';
 
-const COLUMNS = [
-    { label: 'Report Name',      fieldName: 'name',          type: 'text', sortable: true },
-    { label: 'Developer Name',   fieldName: 'developerName', type: 'text', sortable: true },
-    { label: 'Folder Name',      fieldName: 'folderName',    type: 'text', sortable: true }
+const REPORT_COLUMNS = [
+    { label: 'Report Name',    fieldName: 'name',          type: 'text', sortable: true },
+    { label: 'Developer Name', fieldName: 'developerName', type: 'text', sortable: true },
+    { label: 'Folder Name',    fieldName: 'folderName',    type: 'text', sortable: true }
+];
+
+const DASHBOARD_COLUMNS = [
+    { label: 'Dashboard Title', fieldName: 'name',          type: 'text', sortable: true },
+    { label: 'Developer Name',  fieldName: 'developerName', type: 'text', sortable: true },
+    { label: 'Folder Name',     fieldName: 'folderName',    type: 'text', sortable: true },
+    { label: 'Type',            fieldName: 'type',          type: 'text', sortable: true }
 ];
 
 const PAGE_SIZE_OPTIONS = [
@@ -14,6 +21,7 @@ const PAGE_SIZE_OPTIONS = [
 ];
 
 export default class ReportDataTable extends LightningElement {
+
     /** Search result from Apex: { records, totalCount, success, errorMessage } */
     @api searchResult = null;
 
@@ -26,16 +34,64 @@ export default class ReportDataTable extends LightningElement {
     /** Current zero-based offset */
     @api currentOffset = 0;
 
-    @track quickSearchTerm     = '';
-    @track sortField           = 'name';
-    @track sortDirection       = 'asc';
-    @track selectedRowIds      = [];
+    /**
+     * 'reports' | 'dashboards' — drives column set, card title/icon,
+     * empty state messages, and quick search placeholder.
+     */
+    @api objectMode = 'reports';
+
+    @track quickSearchTerm      = '';
+    @track sortField            = 'name';
+    @track sortDirection        = 'asc';
+    @track selectedRowIds       = [];
     @track selectAllAcrossPages = false;
     @track showSelectAllBanner  = false;
 
-    get columns()          { return COLUMNS; }
-    get pageSizeOptions()  { return PAGE_SIZE_OPTIONS; }
-    get pageSizeStr()      { return String(this.pageSize); }
+    // ─── Computed Getters ─────────────────────────────────────────────────────
+
+    get isReportsMode()    { return this.objectMode === 'reports'; }
+    get isDashboardsMode() { return this.objectMode === 'dashboards'; }
+
+    get columns()         { return this.isDashboardsMode ? DASHBOARD_COLUMNS : REPORT_COLUMNS; }
+    get pageSizeOptions() { return PAGE_SIZE_OPTIONS; }
+    get pageSizeStr()     { return String(this.pageSize); }
+
+    get cardTitle() {
+        return this.isDashboardsMode ? 'List of Dashboards' : 'List of Reports';
+    }
+
+    get cardIconName() {
+        return this.isDashboardsMode ? 'standard:dashboard' : 'standard:report';
+    }
+
+    get loadingLabel() {
+        return this.isDashboardsMode ? 'Loading dashboards...' : 'Loading reports...';
+    }
+
+    get emptyStateIcon() {
+        return this.isDashboardsMode ? 'utility:dashboard' : 'utility:search';
+    }
+
+    get emptyStateTitle() {
+        return this.isDashboardsMode ? 'No dashboards found' : 'No reports found';
+    }
+
+    get emptyStateSubtitle() {
+        return this.isDashboardsMode
+            ? 'Use the filter above to search for dashboards.'
+            : 'Use the filter above to search for reports.';
+    }
+
+    get quickSearchPlaceholder() {
+        return this.isDashboardsMode
+            ? 'Filter by title or folder...'
+            : 'Filter by name or folder...';
+    }
+
+    get totalCountLabel() {
+        const count = this.searchResult ? this.searchResult.totalCount : 0;
+        return 'Total: ' + count;
+    }
 
     get hasResults() {
         return !this.isLoading
@@ -94,7 +150,6 @@ export default class ReportDataTable extends LightningElement {
 
     handleQuickSearch(event) {
         this.quickSearchTerm = event.detail.value;
-        // Reset select-all-across-pages when search term changes
         if (this.selectAllAcrossPages) {
             this.selectAllAcrossPages = false;
             this.showSelectAllBanner  = false;
@@ -107,17 +162,14 @@ export default class ReportDataTable extends LightningElement {
         const selectedRows = event.detail.selectedRows;
         this.selectedRowIds = selectedRows.map(r => r.id);
 
-        // Check if all visible rows on current page are selected
-        const pageCount = this.filteredRecords.length;
+        const pageCount      = this.filteredRecords.length;
         const allPageSelected = pageCount > 0 && this.selectedRowIds.length === pageCount;
 
         if (!allPageSelected) {
             this.showSelectAllBanner  = false;
             this.selectAllAcrossPages = false;
         } else {
-            // Show banner only if there are more records beyond this page
-            this.showSelectAllBanner =
-                this.searchResult.totalCount > this.pageSize;
+            this.showSelectAllBanner = this.searchResult.totalCount > this.pageSize;
         }
 
         this._emitSelection();
@@ -125,14 +177,11 @@ export default class ReportDataTable extends LightningElement {
 
     handleSelectAllAcrossPages() {
         this.selectAllAcrossPages = true;
-        // Emit event — parent will call getAllReportIds and pass back all IDs
-        this.dispatchEvent(
-            new CustomEvent('selectallpages', { bubbles: true })
-        );
+        this.dispatchEvent(new CustomEvent('selectallpages', { bubbles: true }));
     }
 
     handleClearAllSelection() {
-        this.selectedRowIds      = [];
+        this.selectedRowIds       = [];
         this.selectAllAcrossPages = false;
         this.showSelectAllBanner  = false;
         this._emitSelection();
@@ -142,7 +191,6 @@ export default class ReportDataTable extends LightningElement {
     @api
     setAllSelectedIds(allIds) {
         this.selectAllAcrossPages = true;
-        // Only mark current-page rows as checked in the datatable
         const pageIds = new Set((this.filteredRecords || []).map(r => r.id));
         this.selectedRowIds = allIds.filter(id => pageIds.has(id));
         this._emitSelection(allIds);
@@ -153,7 +201,6 @@ export default class ReportDataTable extends LightningElement {
     handleSort(event) {
         this.sortField     = event.detail.fieldName;
         this.sortDirection = event.detail.sortDirection;
-        // Sorting is client-side on current page
     }
 
     // ─── Pagination ───────────────────────────────────────────────────────────
@@ -162,7 +209,7 @@ export default class ReportDataTable extends LightningElement {
     goPrev()  { this._changePage(Math.max(0, this.currentOffset - this.pageSize)); }
     goNext()  { this._changePage(this.currentOffset + this.pageSize); }
     goLast()  {
-        const total = this.searchResult ? this.searchResult.totalCount : 0;
+        const total      = this.searchResult ? this.searchResult.totalCount : 0;
         const lastOffset = Math.floor((total - 1) / this.pageSize) * this.pageSize;
         this._changePage(lastOffset);
     }

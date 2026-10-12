@@ -1,8 +1,9 @@
 .soql-textarea {
     font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
     font-size: 0.8rem;
-    min-height: 80px;
+    min-height: 90px;
     resize: vertical;
+    border-radius: 4px;
 }
 
 .soql-preview {
@@ -21,6 +22,40 @@
     word-break: break-all;
 }
 
-.add-condition-row {
-    margin-left: 0;
+/* Action buttons row: Search on left, Clear on right */
+.action-buttons-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 1rem;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.action-buttons-left {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.action-buttons-right {
+    display: flex;
+    align-items: center;
+}
+
+/* Logic toggle row */
+.logic-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid #e8edf2;
+}
+
+.logic-label {
+    color: #5a6872;
+    font-weight: 500;
+    white-space: nowrap;
 }

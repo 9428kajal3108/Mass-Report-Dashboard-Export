@@ -113,15 +113,17 @@ public with sharing class ReportQueryService {
             List<FilterCondition> conditions = deserializeConditions(conditionsJson);
             String whereClause = buildWhereClause(conditions, logic);
 
+            // AccessLevel.USER_MODE enforces record-level sharing and permissions
             result.totalCount = Database.countQuery(
-                'SELECT COUNT() FROM Report' + whereClause
+                'SELECT COUNT() FROM Report' + whereClause,
+                AccessLevel.USER_MODE
             );
 
             String query = BASE_SELECT + whereClause + DEFAULT_ORDER
                 + ' LIMIT '  + safePage(pageSize)
                 + ' OFFSET ' + safeOff(offset);
 
-            result.records = toRecordList((List<Report>) Database.query(query));
+            result.records = toRecordList((List<Report>) Database.query(query, AccessLevel.USER_MODE));
         } catch (Exception ex) {
             result.success      = false;
             result.errorMessage = ex.getMessage();
@@ -141,7 +143,7 @@ public with sharing class ReportQueryService {
             + DEFAULT_ORDER + ' LIMIT ' + MAX_QUERY_LIMIT;
 
         List<String> ids = new List<String>();
-        for (Report r : (List<Report>) Database.query(query)) {
+        for (Report r : (List<Report>) Database.query(query, AccessLevel.USER_MODE)) {
             ids.add(r.Id);
         }
         return ids;
@@ -189,7 +191,7 @@ public with sharing class ReportQueryService {
 
         // 4. Parse check
         try {
-            Database.query(finalQuery);
+            Database.query(finalQuery, AccessLevel.USER_MODE);
             result.valid = true;
         } catch (Exception ex) {
             result.errorMessage = ex.getMessage();
@@ -221,14 +223,15 @@ public with sharing class ReportQueryService {
             String whereClause = extractWhereClause(rawSOQL, normalized);
 
             result.totalCount = Database.countQuery(
-                'SELECT COUNT() FROM Report' + whereClause
+                'SELECT COUNT() FROM Report' + whereClause,
+                AccessLevel.USER_MODE
             );
 
             String query = BASE_SELECT + whereClause + DEFAULT_ORDER
                 + ' LIMIT '  + safePage(pageSize)
                 + ' OFFSET ' + safeOff(offset);
 
-            result.records = toRecordList((List<Report>) Database.query(query));
+            result.records = toRecordList((List<Report>) Database.query(query, AccessLevel.USER_MODE));
         } catch (Exception ex) {
             result.success      = false;
             result.errorMessage = ex.getMessage();
