@@ -38,3 +38,11 @@
     border: 1px dashed #dddbda;
     border-radius: 4px;
 }
+
+/* Same width as the small button-icon so layout is stable when delete is hidden */
+.remove-placeholder {
+    width: 24px;
+    height: 24px;
+    display: block;
+}
+

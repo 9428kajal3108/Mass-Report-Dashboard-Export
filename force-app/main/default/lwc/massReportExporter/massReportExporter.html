@@ -1,70 +1,87 @@
 <template>
-    <div class="app-container">
+    <!-- Export overlay: covers the entire component when isExporting is true -->
+    <div class={appWrapperClass}>
 
-        <!-- ══ HEADER ══ -->
-        <div class="app-header">
-            <div class="app-header__inner">
-                <div class="app-header__icon-title">
-                    <lightning-icon
-                        icon-name={headerIcon}
-                        size="medium"
-                        class="header-icon">
-                    </lightning-icon>
-                    <div class="app-header__text">
-                        <h1 class="slds-text-heading_large app-title">{cardTitle}</h1>
-                        <p class="slds-text-body_small app-subtitle">{headerSubtitle}</p>
-                    </div>
-                </div>
-
-                <!-- Mode Switcher: Reports | Dashboards -->
-                <div class="mode-switcher">
-                    <button
-                        class={reportsModeClass}
-                        onclick={switchToReports}
-                        title="Switch to Reports mode">
-                        <lightning-icon icon-name="standard:report" size="x-small" class="mode-btn-icon"></lightning-icon>
-                        Reports
-                    </button>
-                    <button
-                        class={dashboardsModeClass}
-                        onclick={switchToDashboards}
-                        title="Switch to Dashboards mode">
-                        <lightning-icon icon-name="standard:dashboard" size="x-small" class="mode-btn-icon"></lightning-icon>
-                        Dashboards
-                    </button>
+        <!-- Full-page export overlay spinner -->
+        <template if:true={isExporting}>
+            <div class="export-overlay" role="status" aria-label="Exporting, please wait...">
+                <div class="export-overlay__box">
+                    <lightning-spinner
+                        alternative-text="Exporting, please wait..."
+                        size="large">
+                    </lightning-spinner>
+                    <p class="export-overlay__label">{exportOverlayLabel}</p>
                 </div>
             </div>
-        </div>
+        </template>
 
-        <!-- ══ FILTER PANEL ══ -->
-        <c-filter-builder
-            fields={activeFields}
-            object-mode={currentMode}
-            onsearchrequest={handleSearchRequest}
-            onclearfilters={handleClearFilters}>
-        </c-filter-builder>
+        <div class="app-container">
 
-        <!-- ══ RESULTS + EXPORT ══ -->
-        <c-report-data-table
-            search-result={searchResult}
-            is-loading={isSearching}
-            page-size={pageSize}
-            current-offset={currentOffset}
-            object-mode={currentMode}
-            onpagechange={handlePageChange}
-            onselectionchange={handleSelectionChange}
-            onselectallpages={handleSelectAllPages}
-            lwc:ref="dataTable">
+            <!-- ══ HEADER ══ -->
+            <div class="app-header">
+                <div class="app-header__inner">
+                    <div class="app-header__icon-title">
+                        <lightning-icon
+                            icon-name={headerIcon}
+                            size="medium"
+                            class="header-icon">
+                        </lightning-icon>
+                        <div class="app-header__text">
+                            <h1 class="slds-text-heading_large app-title">{cardTitle}</h1>
+                            <p class="slds-text-body_small app-subtitle">{headerSubtitle}</p>
+                        </div>
+                    </div>
 
-            <!-- Export toolbar slotted inside the card -->
-            <c-export-toolbar
-                slot="export-toolbar"
-                selected-count={selectedCount}
-                is-exporting={isExporting}
+                    <!-- Mode Switcher: Reports | Dashboards -->
+                    <div class="mode-switcher">
+                        <button
+                            class={reportsModeClass}
+                            onclick={switchToReports}
+                            title="Switch to Reports mode">
+                            <lightning-icon icon-name="standard:report" size="x-small" class="mode-btn-icon"></lightning-icon>
+                            Reports
+                        </button>
+                        <button
+                            class={dashboardsModeClass}
+                            onclick={switchToDashboards}
+                            title="Switch to Dashboards mode">
+                            <lightning-icon icon-name="standard:dashboard" size="x-small" class="mode-btn-icon"></lightning-icon>
+                            Dashboards
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ══ FILTER PANEL ══ -->
+            <c-filter-builder
+                fields={activeFields}
                 object-mode={currentMode}
-                onexportrequest={handleExportRequest}>
-            </c-export-toolbar>
-        </c-report-data-table>
+                onsearchrequest={handleSearchRequest}
+                onclearfilters={handleClearFilters}>
+            </c-filter-builder>
 
+            <!-- ══ RESULTS + EXPORT ══ -->
+            <c-report-data-table
+                search-result={searchResult}
+                is-loading={isSearching}
+                page-size={pageSize}
+                current-offset={currentOffset}
+                object-mode={currentMode}
+                onpagechange={handlePageChange}
+                onselectionchange={handleSelectionChange}
+                onselectallpages={handleSelectAllPages}
+                lwc:ref="dataTable">
+
+                <!-- Export toolbar slotted inside the card -->
+                <c-export-toolbar
+                    slot="export-toolbar"
+                    selected-count={selectedCount}
+                    is-exporting={isExporting}
+                    object-mode={currentMode}
+                    onexportrequest={handleExportRequest}>
+                </c-export-toolbar>
+            </c-report-data-table>
+
+        </div>
     </div>
 </template>

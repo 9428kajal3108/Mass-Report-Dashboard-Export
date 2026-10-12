@@ -45,28 +45,23 @@
             </template>
         </div>
 
-        <!-- Remove button -->
+        <!-- Remove button — hidden when this is the only row -->
         <div class="slds-col slds-no-flex filter-action-col">
-            <lightning-button-icon
-                icon-name="utility:delete"
-                variant="border-filled"
-                alternative-text="Remove condition"
-                title="Remove this condition"
-                size="small"
-                onclick={handleRemove}>
-            </lightning-button-icon>
+            <template if:false={isOnlyRow}>
+                <lightning-button-icon
+                    icon-name="utility:delete"
+                    variant="border-filled"
+                    alternative-text="Remove condition"
+                    title="Remove this condition"
+                    size="small"
+                    onclick={handleRemove}>
+                </lightning-button-icon>
+            </template>
+            <!-- Reserve space so columns don't shift when button is hidden -->
+            <template if:true={isOnlyRow}>
+                <div class="remove-placeholder"></div>
+            </template>
         </div>
 
-        <!-- + Add Condition (only on last row) -->
-        <template if:true={showAddButton}>
-            <div class="slds-col slds-no-flex filter-action-col">
-                <lightning-button
-                    label="+ Add Condition"
-                    variant="neutral"
-                    icon-name="utility:add"
-                    onclick={handleAdd}>
-                </lightning-button>
-            </div>
-        </template>
     </div>
 </template>

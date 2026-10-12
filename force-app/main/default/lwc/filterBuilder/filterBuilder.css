@@ -6,6 +6,46 @@
     border-radius: 4px;
 }
 
+/* ── Conditions container ─────────────────────────────────────────────────── */
+.conditions-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+/* Each block wraps the join badge + the filter row */
+.condition-block {
+    display: flex;
+    flex-direction: column;
+}
+
+/* ── AND / OR join badge between rows ────────────────────────────────────── */
+.join-badge-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0;
+    padding-bottom: 1rem;
+}
+
+.join-badge-line {
+    flex: 1;
+    height: 1px;
+    background: #dce3ec;
+}
+
+.join-badge-group {
+    flex-shrink: 0;
+}
+
+/* ── Standalone Add Condition button ─────────────────────────────────────── */
+.add-condition-row {
+    margin-top: 0.75rem;
+    display: flex;
+    align-items: center;
+}
+
+/* ── SOQL preview hint (initial load only) ───────────────────────────────── */
 .soql-preview {
     background: #f4f6f9;
     border-radius: 4px;
@@ -22,40 +62,19 @@
     word-break: break-all;
 }
 
-/* Action buttons row: Search on left, Clear on right */
+/* ── Action buttons row — Search & Clear side by side ────────────────────── */
 .action-buttons-row {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     margin-top: 1rem;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-}
-
-.action-buttons-left {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-}
-
-.action-buttons-right {
-    display: flex;
-    align-items: center;
-}
-
-/* Logic toggle row */
-.logic-toggle-row {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-top: 0.75rem;
-    padding-top: 0.5rem;
+    padding-top: 0.75rem;
     border-top: 1px solid #e8edf2;
 }
 
-.logic-label {
-    color: #5a6872;
-    font-weight: 500;
-    white-space: nowrap;
+/* All buttons (Validate + Search + Clear) in one inline group */
+.action-buttons-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
 }

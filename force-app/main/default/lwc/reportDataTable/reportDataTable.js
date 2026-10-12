@@ -53,8 +53,14 @@ export default class ReportDataTable extends LightningElement {
     get isDashboardsMode() { return this.objectMode === 'dashboards'; }
 
     get columns()         { return this.isDashboardsMode ? DASHBOARD_COLUMNS : REPORT_COLUMNS; }
-    get pageSizeOptions() { return PAGE_SIZE_OPTIONS; }
-    get pageSizeStr()     { return String(this.pageSize); }
+
+    /** Page size options with selected flag for native <select> */
+    get pageSizeOptions() {
+        return PAGE_SIZE_OPTIONS.map(o => ({
+            ...o,
+            selected: Number(o.value) === Number(this.pageSize)
+        }));
+    }
 
     get cardTitle() {
         return this.isDashboardsMode ? 'List of Dashboards' : 'List of Reports';
@@ -215,7 +221,7 @@ export default class ReportDataTable extends LightningElement {
     }
 
     handlePageSizeChange(event) {
-        const newSize = parseInt(event.detail.value, 10);
+        const newSize = parseInt(event.target.value || event.detail.value, 10);
         this.selectAllAcrossPages = false;
         this.showSelectAllBanner  = false;
         this.selectedRowIds       = [];

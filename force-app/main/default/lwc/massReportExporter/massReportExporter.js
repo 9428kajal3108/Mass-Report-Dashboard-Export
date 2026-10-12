@@ -100,6 +100,17 @@ export default class MassReportExporter extends LightningElement {
             : 'mode-btn';
     }
 
+    /** Wrapper class — adds the overlay-active modifier when exporting so the spinner is visible. */
+    get appWrapperClass() {
+        return this.isExporting ? 'app-wrapper app-wrapper--exporting' : 'app-wrapper';
+    }
+
+    get exportOverlayLabel() {
+        return this.isDashboardsMode
+            ? 'Exporting dashboard images… please wait'
+            : 'Exporting reports… please wait';
+    }
+
     // ─── Mode Switching ───────────────────────────────────────────────────────
 
     switchToReports() {
@@ -144,7 +155,8 @@ export default class MassReportExporter extends LightningElement {
     }
 
     handleClearFilters() {
-        this.searchResult  = null;
+        // filterBuilder already fires a fresh searchrequest (load-all) after clearing,
+        // so we only need to reset the selection state here.
         this.currentOffset = 0;
         this._resetSelection();
     }

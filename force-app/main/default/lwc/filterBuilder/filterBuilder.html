@@ -1,7 +1,7 @@
 <template>
     <lightning-card icon-name={cardIconName} title={cardTitle}>
         <div slot="actions">
-            <!-- Mode toggle -->
+            <!-- Mode toggle: Condition Builder | Raw SOQL -->
             <lightning-button-group>
                 <lightning-button
                     label="Condition Builder"
@@ -20,38 +20,54 @@
 
             <!-- ── CONDITION BUILDER MODE ── -->
             <template if:true={isBuilderMode}>
-                <!-- Condition rows — last row shows inline + Add Condition button -->
-                <template for:each={conditionsWithMeta} for:item="cond" for:index="idx">
-                    <c-filter-row
-                        key={cond.id}
-                        row-index={idx}
-                        fields={fields}
-                        condition={cond}
-                        show-add-button={cond.isLast}
-                        onconditionchange={handleConditionChange}
-                        onconditionremove={handleConditionRemove}
-                        onaddcondition={addCondition}>
-                    </c-filter-row>
-                </template>
+                <div class="conditions-container">
 
-                <!-- Logic toggle (only when > 1 condition) -->
-                <template if:true={showLogicToggle}>
-                    <div class="logic-toggle-row">
-                        <span class="slds-text-body_small logic-label">Join with:</span>
-                        <lightning-button-group>
-                            <lightning-button
-                                label="AND"
-                                variant={andVariant}
-                                onclick={setAndLogic}>
-                            </lightning-button>
-                            <lightning-button
-                                label="OR"
-                                variant={orVariant}
-                                onclick={setOrLogic}>
-                            </lightning-button>
-                        </lightning-button-group>
+                    <!-- Each condition block: optional join badge above + filter row -->
+                    <template for:each={conditionsWithMeta} for:item="cond">
+                        <div key={cond.id} class="condition-block">
+
+                            <!-- AND / OR join badge between rows (not before the first) -->
+                            <template if:true={cond.showJoin}>
+                                <div class="join-badge-row">
+                                    <div class="join-badge-line"></div>
+                                    <lightning-button-group class="join-badge-group">
+                                        <lightning-button
+                                            label="AND"
+                                            variant={andVariant}
+                                            onclick={setAndLogic}>
+                                        </lightning-button>
+                                        <lightning-button
+                                            label="OR"
+                                            variant={orVariant}
+                                            onclick={setOrLogic}>
+                                        </lightning-button>
+                                    </lightning-button-group>
+                                    <div class="join-badge-line"></div>
+                                </div>
+                            </template>
+
+                            <!-- Filter row (field / operator / value / remove) -->
+                            <c-filter-row
+                                row-index={cond.idx}
+                                fields={fields}
+                                condition={cond}
+                                is-only-row={cond.isOnly}
+                                onconditionchange={handleConditionChange}
+                                onconditionremove={handleConditionRemove}>
+                            </c-filter-row>
+                        </div>
+                    </template>
+
+                    <!-- Standalone Add Condition button below all rows -->
+                    <div class="add-condition-row">
+                        <lightning-button
+                            label="Add Condition"
+                            variant="neutral"
+                            icon-name="utility:add"
+                            onclick={addCondition}>
+                        </lightning-button>
                     </div>
-                </template>
+                </div>
             </template>
 
             <!-- ── RAW SOQL MODE ── -->
@@ -91,10 +107,10 @@
                 </template>
             </template>
 
-            <!-- ── ACTION BUTTONS ── -->
+            <!-- ── ACTION BUTTONS — Search & Clear always side by side ── -->
             <div class="action-buttons-row">
-                <div class="action-buttons-left">
-                    <!-- In raw mode: Validate first, then Search -->
+                <div class="action-buttons-group">
+                    <!-- Validate button only in raw mode -->
                     <template if:true={isRawMode}>
                         <lightning-button
                             label="Validate SOQL"
@@ -104,12 +120,15 @@
                             onclick={handleValidate}>
                         </lightning-button>
                         <template if:true={isValidating}>
-                            <lightning-spinner alternative-text="Validating..." size="small"
+                            <lightning-spinner
+                                alternative-text="Validating..."
+                                size="small"
                                 class="slds-var-m-left_x-small">
                             </lightning-spinner>
                         </template>
                     </template>
 
+                    <!-- Search button -->
                     <lightning-button
                         label={searchButtonLabel}
                         variant="brand"
@@ -117,9 +136,8 @@
                         disabled={isSearchDisabled}
                         onclick={handleSearch}>
                     </lightning-button>
-                </div>
 
-                <div class="action-buttons-right">
+                    <!-- Clear button — right next to Search -->
                     <lightning-button
                         label="Clear"
                         variant="neutral"
