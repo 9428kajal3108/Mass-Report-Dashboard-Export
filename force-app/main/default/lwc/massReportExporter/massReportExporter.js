@@ -15,7 +15,6 @@ import getDashboardFields          from '@salesforce/apex/DashboardQueryService.
 import searchDashboards            from '@salesforce/apex/DashboardQueryService.searchDashboards';
 import searchDashboardsByRawSOQL   from '@salesforce/apex/DashboardQueryService.searchDashboardsByRawSOQL';
 import getAllDashboardIds           from '@salesforce/apex/DashboardQueryService.getAllDashboardIds';
-import exportDashboards            from '@salesforce/apex/DashboardExportService.exportDashboards';
 
 const MODE_REPORTS    = 'reports';
 const MODE_DASHBOARDS = 'dashboards';
@@ -280,41 +279,64 @@ export default class MassReportExporter extends LightningElement {
 
     async _runDashboardExport(asZip) {
         this.isExporting = true;
-        this._showToast(
-            'Exporting',
-            'Preparing ' + this._selectedIds.length + ' dashboard image(s)... Please wait.',
-            'info'
-        );
+        const ids = this._selectedIds.slice(0, 20);
+        const files = [];
+        let failed = 0;
 
         try {
-            const result = await exportDashboards({
-                dashboardIds: this._selectedIds.slice(0, 20)
-            });
+            for (const id of ids) {
+                const blob = await this._fetchDashboardPng(id);
+                if (blob) {
+                    files.push({ name: `Dashboard_${id}.png`, blob });
+                } else {
+                    failed++;
+                }
+            }
 
-            if (!result.success) {
-                this._showToast('Export Failed', result.errorMessage, 'error');
+            if (files.length === 0) {
+                this._showToast('Export Failed', 'No dashboard images could be downloaded.', 'error');
                 return;
             }
 
             if (asZip) {
-                await this._downloadAsZip(result.files);
+                if (!window.JSZip) {
+                    await loadScript(this, JSZIP);
+                    this._jszipLoaded = true;
+                }
+                const zip = new window.JSZip();
+                files.forEach(f => zip.file(f.name, f.blob));
+                const zipBlob = await zip.generateAsync({ type: 'blob' });
+                const timestamp = new Date().toISOString().slice(0, 19).replace(/[-:T]/g, '');
+                this._triggerBlobDownload(zipBlob, 'DashboardExport_' + timestamp + '.zip');
             } else {
-                await this._downloadIndividually(result.files);
+                for (const f of files) {
+                    this._triggerBlobDownload(f.blob, f.name);
+                    await this._delay(400);
+                }
             }
 
             this._showToast(
-                'Export Complete',
-                result.totalExported + ' dashboard image(s) exported successfully'
-                + (result.totalFailed > 0
-                    ? '. ' + result.totalFailed + ' failed — check error files.'
-                    : '.'),
-                result.totalFailed > 0 ? 'warning' : 'success'
+                failed ? 'Partially Exported' : 'Export Complete',
+                `${files.length} exported, ${failed} failed.`,
+                failed ? 'warning' : 'success'
             );
         } catch (e) {
-            this._showToast('Export Error', e.body ? e.body.message : String(e), 'error');
+            this._showToast('Export Error', e.body ? e.body.message : (e.message || String(e)), 'error');
         } finally {
             this.isExporting = false;
         }
+    }
+
+    async _fetchDashboardPng(id) {
+        // Lightning dashboards first, classic as fallback
+        for (const type of ['lightning-dashboard', 'dashboard']) {
+            try {
+                const res = await fetch(`/analytics/download/${type}/${id}.png`, { credentials: 'include' });
+                const blob = await res.blob();
+                if (res.ok && blob.type.startsWith('image/')) return blob; // reject HTML/error pages
+            } catch (e) { /* try next type */ }
+        }
+        return null;
     }
 
     // ─── Private: Download Helpers ────────────────────────────────────────────
