@@ -18,11 +18,12 @@ public with sharing class DashboardQueryService {
 
     /** One dashboard row returned to the datatable. */
     public class DashboardRecord {
-        @AuraEnabled public String id            { get; set; }
-        @AuraEnabled public String name          { get; set; }
-        @AuraEnabled public String developerName { get; set; }
-        @AuraEnabled public String folderName    { get; set; }
-        @AuraEnabled public String type          { get; set; }
+        @AuraEnabled public String id             { get; set; }
+        @AuraEnabled public String name           { get; set; }
+        @AuraEnabled public String developerName  { get; set; }
+        @AuraEnabled public String folderName     { get; set; }
+        @AuraEnabled public String type           { get; set; }
+        @AuraEnabled public String createdByName  { get; set; }
     }
 
     /** Paginated search result wrapper. */
@@ -63,7 +64,7 @@ public with sharing class DashboardQueryService {
     @TestVisible private static final Integer DEFAULT_PAGE_SIZE = 10;
     @TestVisible private static final Integer MAX_QUERY_LIMIT   = 2000;
 
-    private static final String BASE_SELECT   = 'SELECT Id, Title, DeveloperName, FolderName, Type FROM Dashboard';
+    private static final String BASE_SELECT   = 'SELECT Id, Title, DeveloperName, FolderName, Type, CreatedBy.Name FROM Dashboard';
     private static final String DEFAULT_ORDER = ' ORDER BY Title ASC';
 
     private static final Set<String> BLOCKED_KEYWORDS = new Set<String>{
@@ -123,13 +124,20 @@ public with sharing class DashboardQueryService {
             List<FilterCondition> conditions = deserializeConditions(conditionsJson);
             String whereClause = buildWhereClause(conditions, logic);
 
+            // Exclude records created by "Automated Process"
+            String automatedFilter = ' AND CreatedBy.Name != \'Automated Process\'';
+            String countWhere = String.isBlank(whereClause)
+                ? ' WHERE CreatedBy.Name != \'Automated Process\''
+                : whereClause + automatedFilter;
+            String dataWhere = countWhere;
+
             // AccessLevel.USER_MODE ensures only dashboards the user can read are returned
             result.totalCount = Database.countQuery(
-                'SELECT COUNT() FROM Dashboard' + whereClause,
+                'SELECT COUNT() FROM Dashboard' + countWhere,
                 AccessLevel.USER_MODE
             );
 
-            String query = BASE_SELECT + whereClause + DEFAULT_ORDER
+            String query = BASE_SELECT + dataWhere + DEFAULT_ORDER
                 + ' LIMIT '  + safePage(pageSize)
                 + ' OFFSET ' + safeOff(offset);
 
@@ -149,7 +157,14 @@ public with sharing class DashboardQueryService {
     public static List<String> getAllDashboardIds(String conditionsJson, String logic) {
         List<FilterCondition> conditions = deserializeConditions(conditionsJson);
         String whereClause = buildWhereClause(conditions, logic);
-        String query = 'SELECT Id FROM Dashboard' + whereClause
+
+        // Exclude records created by "Automated Process"
+        String automatedFilter = ' AND CreatedBy.Name != \'Automated Process\'';
+        String dataWhere = String.isBlank(whereClause)
+            ? ' WHERE CreatedBy.Name != \'Automated Process\''
+            : whereClause + automatedFilter;
+
+        String query = 'SELECT Id FROM Dashboard' + dataWhere
             + DEFAULT_ORDER + ' LIMIT ' + MAX_QUERY_LIMIT;
 
         List<String> ids = new List<String>();
@@ -229,12 +244,19 @@ public with sharing class DashboardQueryService {
             String normalized  = rawSOQL.toLowerCase().trim();
             String whereClause = extractWhereClause(rawSOQL, normalized);
 
+            // Exclude records created by "Automated Process"
+            String automatedFilter = ' AND CreatedBy.Name != \'Automated Process\'';
+            String countWhere = String.isBlank(whereClause)
+                ? ' WHERE CreatedBy.Name != \'Automated Process\''
+                : whereClause + automatedFilter;
+            String dataWhere = countWhere;
+
             result.totalCount = Database.countQuery(
-                'SELECT COUNT() FROM Dashboard' + whereClause,
+                'SELECT COUNT() FROM Dashboard' + countWhere,
                 AccessLevel.USER_MODE
             );
 
-            String query = BASE_SELECT + whereClause + DEFAULT_ORDER
+            String query = BASE_SELECT + dataWhere + DEFAULT_ORDER
                 + ' LIMIT '  + safePage(pageSize)
                 + ' OFFSET ' + safeOff(offset);
 
@@ -349,12 +371,13 @@ public with sharing class DashboardQueryService {
     private static List<DashboardRecord> toRecordList(List<Dashboard> dashboards) {
         List<DashboardRecord> records = new List<DashboardRecord>();
         for (Dashboard d : dashboards) {
-            DashboardRecord dr  = new DashboardRecord();
-            dr.id            = d.Id;
-            dr.name          = d.Title;
-            dr.developerName = d.DeveloperName;
-            dr.folderName    = d.FolderName;
-            dr.type          = d.Type;
+            DashboardRecord dr   = new DashboardRecord();
+            dr.id             = d.Id;
+            dr.name           = d.Title;
+            dr.developerName  = d.DeveloperName;
+            dr.folderName     = d.FolderName;
+            dr.type           = d.Type;
+            dr.createdByName  = d.CreatedBy != null ? d.CreatedBy.Name : '';
             records.add(dr);
         }
         return records;

@@ -24,7 +24,6 @@ export default class ExportToolbar extends LightningElement {
     @api objectMode = 'reports';
 
     @track selectedFormat = 'Excel';
-    @track isZip          = false;
 
     formatOptions = REPORT_FORMAT_OPTIONS;
 
@@ -50,14 +49,7 @@ export default class ExportToolbar extends LightningElement {
             return this.isDashboardsMode ? 'Exporting images...' : 'Exporting...';
         }
         const count = this.selectedCount || 0;
-        if (this.isDashboardsMode) {
-            return this.isZip
-                ? 'Export as ZIP (' + count + ')'
-                : 'Download JPG (' + count + ')';
-        }
-        return this.isZip
-            ? 'Export as ZIP (' + count + ')'
-            : 'Export Now (' + count + ')';
+        return 'Export Now (' + count + ')';
     }
 
     get exportingLabel() {
@@ -81,16 +73,13 @@ export default class ExportToolbar extends LightningElement {
         this.selectedFormat = event.detail.value || event.target.value;
     }
 
-    handleZipChange(event) {
-        this.isZip = event.target.checked;
-    }
-
     handleExport() {
-        // Dashboards always export as JPG (format not applicable)
+        // Dashboards always export as JPG; reports use selected format.
+        // ZIP is always enforced — individual download is no longer an option.
         const format = this.isDashboardsMode ? 'JPG' : this.selectedFormat;
         this.dispatchEvent(
             new CustomEvent('exportrequest', {
-                detail: { format, asZip: this.isZip },
+                detail: { format, asZip: true },
                 bubbles: true
             })
         );

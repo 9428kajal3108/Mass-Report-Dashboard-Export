@@ -46,19 +46,6 @@
                 </div>
             </template>
 
-            <!-- ZIP checkbox (shown for both modes) -->
-            <div class="slds-form-element slds-var-m-bottom_medium">
-                <lightning-input
-                    type="checkbox"
-                    label="Download as ZIP"
-                    checked={isZip}
-                    onchange={handleZipChange}>
-                </lightning-input>
-                <div class="zip-help-text slds-var-m-top_xxx-small slds-text-color_weak">
-                    If unchecked, files download individually.
-                </div>
-            </div>
-
             <!-- Limit warning -->
             <template if:true={showLimitWarning}>
                 <div class="limit-warning-wrap slds-var-m-bottom_medium">

@@ -18,10 +18,11 @@ public with sharing class ReportQueryService {
 
     /** One report row returned to the datatable. */
     public class ReportRecord {
-        @AuraEnabled public String id            { get; set; }
-        @AuraEnabled public String name          { get; set; }
-        @AuraEnabled public String developerName { get; set; }
-        @AuraEnabled public String folderName    { get; set; }
+        @AuraEnabled public String id             { get; set; }
+        @AuraEnabled public String name           { get; set; }
+        @AuraEnabled public String developerName  { get; set; }
+        @AuraEnabled public String folderName     { get; set; }
+        @AuraEnabled public String createdByName  { get; set; }
     }
 
     /** Paginated search result wrapper. */
@@ -62,7 +63,7 @@ public with sharing class ReportQueryService {
     @TestVisible private static final Integer DEFAULT_PAGE_SIZE = 10;
     @TestVisible private static final Integer MAX_QUERY_LIMIT   = 2000;
 
-    private static final String BASE_SELECT   = 'SELECT Id, Name, DeveloperName, FolderName FROM Report';
+    private static final String BASE_SELECT   = 'SELECT Id, Name, DeveloperName, FolderName, CreatedBy.Name FROM Report';
     private static final String DEFAULT_ORDER = ' ORDER BY Name ASC';
 
     private static final Set<String> BLOCKED_KEYWORDS = new Set<String>{
@@ -114,13 +115,23 @@ public with sharing class ReportQueryService {
             List<FilterCondition> conditions = deserializeConditions(conditionsJson);
             String whereClause = buildWhereClause(conditions, logic);
 
+            // Exclude records created by "Automated Process"
+            String automatedFilter = ' AND CreatedBy.Name != \'Automated Process\'';
+            String countWhere = String.isBlank(whereClause)
+                ? ' WHERE CreatedBy.Name != \'Automated Process\''
+                : whereClause + automatedFilter;
+
             // AccessLevel.USER_MODE enforces record-level sharing and permissions
             result.totalCount = Database.countQuery(
-                'SELECT COUNT() FROM Report' + whereClause,
+                'SELECT COUNT() FROM Report' + countWhere,
                 AccessLevel.USER_MODE
             );
 
-            String query = BASE_SELECT + whereClause + DEFAULT_ORDER
+            String dataWhere = String.isBlank(whereClause)
+                ? ' WHERE CreatedBy.Name != \'Automated Process\''
+                : whereClause + automatedFilter;
+
+            String query = BASE_SELECT + dataWhere + DEFAULT_ORDER
                 + ' LIMIT '  + safePage(pageSize)
                 + ' OFFSET ' + safeOff(offset);
 
@@ -140,7 +151,14 @@ public with sharing class ReportQueryService {
     public static List<String> getAllReportIds(String conditionsJson, String logic) {
         List<FilterCondition> conditions = deserializeConditions(conditionsJson);
         String whereClause = buildWhereClause(conditions, logic);
-        String query = 'SELECT Id FROM Report' + whereClause
+
+        // Exclude records created by "Automated Process"
+        String automatedFilter = ' AND CreatedBy.Name != \'Automated Process\'';
+        String dataWhere = String.isBlank(whereClause)
+            ? ' WHERE CreatedBy.Name != \'Automated Process\''
+            : whereClause + automatedFilter;
+
+        String query = 'SELECT Id FROM Report' + dataWhere
             + DEFAULT_ORDER + ' LIMIT ' + MAX_QUERY_LIMIT;
 
         List<String> ids = new List<String>();
@@ -223,12 +241,19 @@ public with sharing class ReportQueryService {
             String normalized  = rawSOQL.toLowerCase().trim();
             String whereClause = extractWhereClause(rawSOQL, normalized);
 
+            // Exclude records created by "Automated Process"
+            String automatedFilter = ' AND CreatedBy.Name != \'Automated Process\'';
+            String countWhere = String.isBlank(whereClause)
+                ? ' WHERE CreatedBy.Name != \'Automated Process\''
+                : whereClause + automatedFilter;
+            String dataWhere = countWhere;
+
             result.totalCount = Database.countQuery(
-                'SELECT COUNT() FROM Report' + whereClause,
+                'SELECT COUNT() FROM Report' + countWhere,
                 AccessLevel.USER_MODE
             );
 
-            String query = BASE_SELECT + whereClause + DEFAULT_ORDER
+            String query = BASE_SELECT + dataWhere + DEFAULT_ORDER
                 + ' LIMIT '  + safePage(pageSize)
                 + ' OFFSET ' + safeOff(offset);
 
@@ -351,11 +376,12 @@ public with sharing class ReportQueryService {
     private static List<ReportRecord> toRecordList(List<Report> reports) {
         List<ReportRecord> records = new List<ReportRecord>();
         for (Report r : reports) {
-            ReportRecord rr  = new ReportRecord();
-            rr.id            = r.Id;
-            rr.name          = r.Name;
-            rr.developerName = r.DeveloperName;
-            rr.folderName    = r.FolderName;
+            ReportRecord rr   = new ReportRecord();
+            rr.id             = r.Id;
+            rr.name           = r.Name;
+            rr.developerName  = r.DeveloperName;
+            rr.folderName     = r.FolderName;
+            rr.createdByName  = r.CreatedBy != null ? r.CreatedBy.Name : '';
             records.add(rr);
         }
         return records;

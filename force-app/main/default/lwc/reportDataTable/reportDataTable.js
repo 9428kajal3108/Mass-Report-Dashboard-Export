@@ -1,29 +1,52 @@
 import { LightningElement, api, track } from 'lwc';
+import { NavigationMixin } from 'lightning/navigation';
 
 const REPORT_COLUMNS = [
-    { label: 'Report Name',    fieldName: 'name',          type: 'text', sortable: true },
+    {
+        label: 'Report Name',
+        fieldName: 'nameUrl',
+        type: 'url',
+        sortable: true,
+        typeAttributes: { label: { fieldName: 'name' }, target: '_blank' }
+    },
     { label: 'Developer Name', fieldName: 'developerName', type: 'text', sortable: true },
-    { label: 'Folder Name',    fieldName: 'folderName',    type: 'text', sortable: true }
+    { label: 'Folder Name', fieldName: 'folderName', type: 'text', sortable: true },
+    { label: 'Created By', fieldName: 'createdByName', type: 'text', sortable: true }
 ];
 
 const DASHBOARD_COLUMNS = [
-    { label: 'Dashboard Title', fieldName: 'name',          type: 'text', sortable: true },
-    { label: 'Developer Name',  fieldName: 'developerName', type: 'text', sortable: true },
-    { label: 'Folder Name',     fieldName: 'folderName',    type: 'text', sortable: true },
-    { label: 'Type',            fieldName: 'type',          type: 'text', sortable: true }
+    {
+        label: 'Dashboard Title',
+        fieldName: 'nameUrl',
+        type: 'url',
+        sortable: true,
+        typeAttributes: { label: { fieldName: 'name' }, target: '_blank' }
+    },
+    { label: 'Developer Name', fieldName: 'developerName', type: 'text', sortable: true },
+    { label: 'Folder Name', fieldName: 'folderName', type: 'text', sortable: true },
+    { label: 'Type', fieldName: 'type', type: 'text', sortable: true },
+    { label: 'Created By', fieldName: 'createdByName', type: 'text', sortable: true }
 ];
 
 const PAGE_SIZE_OPTIONS = [
-    { label: '10',  value: '10' },
-    { label: '25',  value: '25' },
-    { label: '50',  value: '50' },
+    { label: '10', value: '10' },
+    { label: '25', value: '25' },
+    { label: '50', value: '50' },
     { label: '100', value: '100' }
 ];
 
-export default class ReportDataTable extends LightningElement {
+export default class ReportDataTable extends NavigationMixin(LightningElement) {
 
     /** Search result from Apex: { records, totalCount, success, errorMessage } */
-    @api searchResult = null;
+    _searchResult = null;
+    @api
+    get searchResult() {
+        return this._searchResult;
+    }
+    set searchResult(val) {
+        this._searchResult = val;
+        this._syncPageSelection();
+    }
 
     /** Is a search in progress? */
     @api isLoading = false;
@@ -32,7 +55,15 @@ export default class ReportDataTable extends LightningElement {
     @api pageSize = 10;
 
     /** Current zero-based offset */
-    @api currentOffset = 0;
+    _currentOffset = 0;
+    @api
+    get currentOffset() {
+        return this._currentOffset;
+    }
+    set currentOffset(val) {
+        this._currentOffset = val;
+        this._syncPageSelection();
+    }
 
     /**
      * 'reports' | 'dashboards' — drives column set, card title/icon,
@@ -40,21 +71,58 @@ export default class ReportDataTable extends LightningElement {
      */
     @api objectMode = 'reports';
 
-    @track quickSearchTerm      = '';
-    @track sortField            = 'name';
-    @track sortDirection        = 'asc';
-    @track selectedRowIds       = [];
-    @track selectAllAcrossPages = false;
-    @track showSelectAllBanner  = false;
+    @track quickSearchTerm = '';
+    @track sortField = 'name';
+    @track sortDirection = 'asc';
+    @track selectedRowIds = [];
+
+    // ─── Internal Selection State ─────────────────────────────────────────────
+
+    /** True when "select all across all pages" mode is active. */
+    _selectAllActive = false;
+    /** Full set of all selected IDs (persists across pages). */
+    _allSelectedIds = new Set();
+
+    // ─── Lifecycle ────────────────────────────────────────────────────────────
+
+    renderedCallback() {
+        // Safety net: ensure all rows on page are selected if _selectAllActive
+        if (this._selectAllActive && this.filteredRecords.length > 0 && this.selectedRowIds.length !== this.filteredRecords.length) {
+            this.selectedRowIds = this.filteredRecords.map(r => r.id);
+        }
+    }
+
+    // ─── Public API (called by parent) ────────────────────────────────────────
+
+    /**
+     * Called by parent after fetching all IDs for "select all across pages".
+     * Marks all IDs selected and re-checks the current page rows.
+     */
+    @api
+    setAllSelectedIds(allIds) {
+        this._selectAllActive = true;
+        this._allSelectedIds = new Set(allIds);
+        this._syncPageSelection();
+        this._emitSelection();
+    }
+
+    /**
+     * Called by parent to fully reset selection (e.g. on new search or mode switch).
+     */
+    @api
+    resetSelection() {
+        this._selectAllActive = false;
+        this._allSelectedIds = new Set();
+        this.selectedRowIds = [];
+        this._emitSelection();
+    }
 
     // ─── Computed Getters ─────────────────────────────────────────────────────
 
-    get isReportsMode()    { return this.objectMode === 'reports'; }
+    get isReportsMode() { return this.objectMode === 'reports'; }
     get isDashboardsMode() { return this.objectMode === 'dashboards'; }
+    get columns() { return this.isDashboardsMode ? DASHBOARD_COLUMNS : REPORT_COLUMNS; }
 
-    get columns()         { return this.isDashboardsMode ? DASHBOARD_COLUMNS : REPORT_COLUMNS; }
-
-    /** Page size options with selected flag for native <select> */
     get pageSizeOptions() {
         return PAGE_SIZE_OPTIONS.map(o => ({
             ...o,
@@ -124,11 +192,15 @@ export default class ReportDataTable extends LightningElement {
     get filteredRecords() {
         if (!this.searchResult || !this.searchResult.records) return [];
         const term = this.quickSearchTerm.toLowerCase().trim();
-        if (!term) return this.searchResult.records;
-        return this.searchResult.records.filter(r =>
-            (r.name          && r.name.toLowerCase().includes(term)) ||
+        const records = this.searchResult.records.map(r => ({
+            ...r,
+            nameUrl: this._buildRecordUrl(r.id)
+        }));
+        if (!term) return records;
+        return records.filter(r =>
+            (r.name && r.name.toLowerCase().includes(term)) ||
             (r.developerName && r.developerName.toLowerCase().includes(term)) ||
-            (r.folderName    && r.folderName.toLowerCase().includes(term))
+            (r.folderName && r.folderName.toLowerCase().includes(term))
         );
     }
 
@@ -156,109 +228,135 @@ export default class ReportDataTable extends LightningElement {
 
     handleQuickSearch(event) {
         this.quickSearchTerm = event.detail.value;
-        if (this.selectAllAcrossPages) {
-            this.selectAllAcrossPages = false;
-            this.showSelectAllBanner  = false;
-        }
     }
 
     // ─── Row Selection ────────────────────────────────────────────────────────
 
     handleRowSelection(event) {
         const selectedRows = event.detail.selectedRows;
-        this.selectedRowIds = selectedRows.map(r => r.id);
+        const pageRecords = this.filteredRecords;
+        const pageCount = pageRecords.length;
+        const selectedCount = selectedRows.length;
 
-        const pageCount      = this.filteredRecords.length;
-        const allPageSelected = pageCount > 0 && this.selectedRowIds.length === pageCount;
+        // ── Case 1: ALL rows on the current page just got selected (header checkbox) ──
+        // Treat this as "select all across all pages" intent.
+        if (selectedCount === pageCount && pageCount > 0) {
+            this._selectAllActive = true;
+            pageRecords.forEach(r => this._allSelectedIds.add(r.id));
+            this.selectedRowIds = pageRecords.map(r => r.id);
 
-        if (!allPageSelected) {
-            this.showSelectAllBanner  = false;
-            this.selectAllAcrossPages = false;
-        } else {
-            this.showSelectAllBanner = this.searchResult.totalCount > this.pageSize;
+            // If there are more records beyond this page, ask parent to fetch all IDs.
+            // If this is the only page, just mark all current IDs as selected.
+            if (this.searchResult && this.searchResult.totalCount > pageCount) {
+                this.dispatchEvent(new CustomEvent('selectallpages', { bubbles: true }));
+            } else {
+                this._emitSelection();
+            }
+            return;
         }
 
+        // ── Case 2: Deselect all from any page (header checkbox unchecked) ──
+        if (selectedCount === 0) {
+            this._selectAllActive = false;
+            this._allSelectedIds = new Set();
+            this.selectedRowIds = [];
+            this._emitSelection();
+            return;
+        }
+
+        // ── Case 3: Normal individual row toggle ──
+        // Exit select-all mode; update only the per-row state for the current page.
+        this._selectAllActive = false;
+        const currentPageIds = new Set(pageRecords.map(r => r.id));
+        const selectedPageIds = new Set(selectedRows.map(r => r.id));
+
+        // Remove current page IDs from global set, then add back only the checked ones
+        currentPageIds.forEach(id => this._allSelectedIds.delete(id));
+        selectedPageIds.forEach(id => this._allSelectedIds.add(id));
+
+        this.selectedRowIds = [...selectedPageIds];
         this._emitSelection();
-    }
-
-    handleSelectAllAcrossPages() {
-        this.selectAllAcrossPages = true;
-        this.dispatchEvent(new CustomEvent('selectallpages', { bubbles: true }));
-    }
-
-    handleClearAllSelection() {
-        this.selectedRowIds       = [];
-        this.selectAllAcrossPages = false;
-        this.showSelectAllBanner  = false;
-        this._emitSelection();
-    }
-
-    /** Called by parent when all IDs are fetched — update local selection display. */
-    @api
-    setAllSelectedIds(allIds) {
-        this.selectAllAcrossPages = true;
-        const pageIds = new Set((this.filteredRecords || []).map(r => r.id));
-        this.selectedRowIds = allIds.filter(id => pageIds.has(id));
-        this._emitSelection(allIds);
     }
 
     // ─── Sorting ──────────────────────────────────────────────────────────────
 
     handleSort(event) {
-        this.sortField     = event.detail.fieldName;
+        this.sortField = event.detail.fieldName;
         this.sortDirection = event.detail.sortDirection;
     }
 
     // ─── Pagination ───────────────────────────────────────────────────────────
 
     goFirst() { this._changePage(0); }
-    goPrev()  { this._changePage(Math.max(0, this.currentOffset - this.pageSize)); }
-    goNext()  { this._changePage(this.currentOffset + this.pageSize); }
-    goLast()  {
-        const total      = this.searchResult ? this.searchResult.totalCount : 0;
+    goPrev() { this._changePage(Math.max(0, this.currentOffset - this.pageSize)); }
+    goNext() { this._changePage(this.currentOffset + this.pageSize); }
+    goLast() {
+        const total = this.searchResult ? this.searchResult.totalCount : 0;
         const lastOffset = Math.floor((total - 1) / this.pageSize) * this.pageSize;
         this._changePage(lastOffset);
     }
 
     handlePageSizeChange(event) {
         const newSize = parseInt(event.target.value || event.detail.value, 10);
-        this.selectAllAcrossPages = false;
-        this.showSelectAllBanner  = false;
-        this.selectedRowIds       = [];
+        // Changing page size resets everything
+        this._selectAllActive = false;
+        this._allSelectedIds = new Set();
+        this._lastRenderedPageKey = '';
+        this.selectedRowIds = [];
         this.dispatchEvent(
             new CustomEvent('pagechange', {
-                detail: { pageSize: newSize, offset: 0 },
+                detail: { pageSize: newSize, offset: 0, resetSelection: true },
                 bubbles: true
             })
         );
     }
 
-    // ─── Private ──────────────────────────────────────────────────────────────
+    // ─── Private Helpers ──────────────────────────────────────────────────────
 
     _changePage(newOffset) {
-        this.selectAllAcrossPages = false;
-        this.showSelectAllBanner  = false;
-        this.selectedRowIds       = [];
-        this.quickSearchTerm      = '';
+        this.quickSearchTerm = '';
         this.dispatchEvent(
             new CustomEvent('pagechange', {
-                detail: { pageSize: this.pageSize, offset: newOffset },
+                detail: { pageSize: this.pageSize, offset: newOffset, resetSelection: false },
                 bubbles: true
             })
         );
     }
 
-    _emitSelection(overrideIds) {
-        const ids = overrideIds || (this.selectAllAcrossPages ? [] : this.selectedRowIds);
+    /**
+     * Builds a standard Salesforce Lightning record page URL.
+     * The URL column opens it in a new tab via target: '_blank'.
+     */
+    _buildRecordUrl(recordId) {
+        if (!recordId) return null;
+        return '/lightning/r/' + recordId + '/view';
+    }
+
+    /**
+     * Syncs the datatable's checked rows to match _allSelectedIds for the current page.
+     * Called after page navigation renders new data (renderedCallback) and
+     * after setAllSelectedIds is called by the parent.
+     */
+    _syncPageSelection() {
+        const pageIds = (this.filteredRecords || []).map(r => r.id);
+        if (this._selectAllActive) {
+            // In select-all mode: every row on every page should be checked
+            this.selectedRowIds = pageIds;
+        } else {
+            // Normal mode: only check rows that are in the global selection set
+            this.selectedRowIds = pageIds.filter(id => this._allSelectedIds.has(id));
+        }
+    }
+
+    _emitSelection() {
+        const allIds = this._selectAllActive
+            ? [...this._allSelectedIds]
+            : [...this._allSelectedIds];
         this.dispatchEvent(
             new CustomEvent('selectionchange', {
                 detail: {
-                    selectedIds:          ids,
-                    selectedPageIds:      this.selectedRowIds,
-                    selectAllAcrossPages: this.selectAllAcrossPages,
-                    count:                this.selectAllAcrossPages
-                        ? (this.searchResult ? this.searchResult.totalCount : 0)
-                        : this.selectedRowIds.length
+                    selectedIds: allIds,
+                    count: allIds.length
                 },
                 bubbles: true
             })

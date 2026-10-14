@@ -67,28 +67,6 @@
                             </template>
                         </div>
 
-                        <!-- Select-all-across-pages banner -->
-                        <template if:true={showSelectAllBanner}>
-                            <div class="slds-notify slds-notify_alert slds-theme_info select-all-banner"
-                                 role="status">
-                                <lightning-icon icon-name="utility:info" size="x-small"
-                                    class="slds-var-m-right_x-small"></lightning-icon>
-                                <template if:false={selectAllAcrossPages}>
-                                    All <strong>{pageSize}</strong> records on this page are selected.
-                                    <a href="javascript:void(0)" onclick={handleSelectAllAcrossPages}
-                                       class="slds-var-m-left_x-small select-all-link">
-                                        Select all {searchResult.totalCount} records in this search
-                                    </a>
-                                </template>
-                                <template if:true={selectAllAcrossPages}>
-                                    All <strong>{searchResult.totalCount}</strong> records are selected.
-                                    <a href="javascript:void(0)" onclick={handleClearAllSelection}
-                                       class="slds-var-m-left_x-small select-all-link">
-                                        Clear selection
-                                    </a>
-                                </template>
-                            </div>
-                        </template>
 
                         <!-- Data table -->
                         <div class="datatable-container">

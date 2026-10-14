@@ -4,19 +4,19 @@ import { loadScript } from 'lightning/platformResourceLoader';
 import JSZIP from '@salesforce/resourceUrl/jszip';
 
 // ── Report Apex imports ──────────────────────────────────────────────────────
-import getReportFields        from '@salesforce/apex/ReportQueryService.getReportFields';
-import searchReports          from '@salesforce/apex/ReportQueryService.searchReports';
+import getReportFields from '@salesforce/apex/ReportQueryService.getReportFields';
+import searchReports from '@salesforce/apex/ReportQueryService.searchReports';
 import searchReportsByRawSOQL from '@salesforce/apex/ReportQueryService.searchReportsByRawSOQL';
-import getAllReportIds         from '@salesforce/apex/ReportQueryService.getAllReportIds';
-import exportReports          from '@salesforce/apex/ReportExportService.exportReports';
+import getAllReportIds from '@salesforce/apex/ReportQueryService.getAllReportIds';
+import exportReports from '@salesforce/apex/ReportExportService.exportReports';
 
 // ── Dashboard Apex imports ───────────────────────────────────────────────────
-import getDashboardFields          from '@salesforce/apex/DashboardQueryService.getDashboardFields';
-import searchDashboards            from '@salesforce/apex/DashboardQueryService.searchDashboards';
-import searchDashboardsByRawSOQL   from '@salesforce/apex/DashboardQueryService.searchDashboardsByRawSOQL';
-import getAllDashboardIds           from '@salesforce/apex/DashboardQueryService.getAllDashboardIds';
+import getDashboardFields from '@salesforce/apex/DashboardQueryService.getDashboardFields';
+import searchDashboards from '@salesforce/apex/DashboardQueryService.searchDashboards';
+import searchDashboardsByRawSOQL from '@salesforce/apex/DashboardQueryService.searchDashboardsByRawSOQL';
+import getAllDashboardIds from '@salesforce/apex/DashboardQueryService.getAllDashboardIds';
 
-const MODE_REPORTS    = 'reports';
+const MODE_REPORTS = 'reports';
 const MODE_DASHBOARDS = 'dashboards';
 
 export default class MassReportExporter extends LightningElement {
@@ -29,37 +29,37 @@ export default class MassReportExporter extends LightningElement {
 
     @wire(getReportFields)
     wiredReportFields({ data, error }) {
-        if (data)  { this.reportFields = data; }
+        if (data) { this.reportFields = data; }
         if (error) { this._showToast('Error', 'Could not load Report fields.', 'error'); }
     }
 
     @wire(getDashboardFields)
     wiredDashboardFields({ data, error }) {
-        if (data)  { this.dashboardFields = data; }
+        if (data) { this.dashboardFields = data; }
         if (error) { this._showToast('Error', 'Could not load Dashboard fields.', 'error'); }
     }
 
     // ─── State ────────────────────────────────────────────────────────────────
 
-    @track reportFields    = [];
+    @track reportFields = [];
     @track dashboardFields = [];
-    @track searchResult    = null;
-    @track isSearching     = false;
-    @track isExporting     = false;
-    @track pageSize        = 10;
-    @track currentOffset   = 0;
-    @track selectedCount   = 0;
-    @track pendingFormat   = 'Excel';
-    @track currentMode     = MODE_REPORTS; // 'reports' | 'dashboards'
+    @track searchResult = null;
+    @track isSearching = false;
+    @track isExporting = false;
+    @track pageSize = 10;
+    @track currentOffset = 0;
+    @track selectedCount = 0;
+    @track pendingFormat = 'Excel';
+    @track currentMode = MODE_REPORTS; // 'reports' | 'dashboards'
 
     // Internal selection state
-    _selectedIds             = [];
-    _selectAllAcrossPages    = false;
-    _currentConditionsJson   = '[]';
-    _currentLogic            = 'AND';
-    _currentRawSOQL          = '';
-    _currentFilterMode       = 'builder'; // filter builder vs raw SOQL
-    _jszipLoaded             = false;
+    _selectedIds = [];
+    _selectAllAcrossPages = false;
+    _currentConditionsJson = '[]';
+    _currentLogic = 'AND';
+    _currentRawSOQL = '';
+    _currentFilterMode = 'builder'; // filter builder vs raw SOQL
+    _jszipLoaded = false;
 
     // ─── Lifecycle ────────────────────────────────────────────────────────────
 
@@ -71,7 +71,7 @@ export default class MassReportExporter extends LightningElement {
 
     // ─── Computed Getters ─────────────────────────────────────────────────────
 
-    get isReportsMode()    { return this.currentMode === MODE_REPORTS; }
+    get isReportsMode() { return this.currentMode === MODE_REPORTS; }
     get isDashboardsMode() { return this.currentMode === MODE_DASHBOARDS; }
 
     get activeFields() {
@@ -126,27 +126,35 @@ export default class MassReportExporter extends LightningElement {
     }
 
     _resetSearch() {
-        this.searchResult  = null;
+        this.searchResult = null;
         this.currentOffset = 0;
         this._resetSelection();
         this._currentConditionsJson = '[]';
-        this._currentLogic          = 'AND';
-        this._currentRawSOQL        = '';
-        this._currentFilterMode     = 'builder';
+        this._currentLogic = 'AND';
+        this._currentRawSOQL = '';
+        this._currentFilterMode = 'builder';
+
+        // Reset child table's internal select-all state
+        const table = this.refs.dataTable;
+        if (table) { table.resetSelection(); }
     }
 
     // ─── Filter Events ────────────────────────────────────────────────────────
 
     handleSearchRequest(event) {
         const { mode, conditions, logic, rawSOQL } = event.detail;
-        this._currentFilterMode    = mode;
-        this._currentLogic         = logic;
-        this.currentOffset         = 0;
+        this._currentFilterMode = mode;
+        this._currentLogic = logic;
+        this.currentOffset = 0;
         this._resetSelection();
+
+        // Also reset child table's internal select-all state
+        const table = this.refs.dataTable;
+        if (table) { table.resetSelection(); }
 
         if (mode === 'builder') {
             this._currentConditionsJson = JSON.stringify(conditions);
-            this._currentRawSOQL        = '';
+            this._currentRawSOQL = '';
             this._runBuilderSearch(0);
         } else {
             this._currentRawSOQL = rawSOQL;
@@ -159,15 +167,22 @@ export default class MassReportExporter extends LightningElement {
         // so we only need to reset the selection state here.
         this.currentOffset = 0;
         this._resetSelection();
+        const table = this.refs.dataTable;
+        if (table) { table.resetSelection(); }
     }
 
     // ─── Pagination Events ────────────────────────────────────────────────────
 
     handlePageChange(event) {
-        const { pageSize, offset } = event.detail;
-        this.pageSize      = pageSize;
+        const { pageSize, offset, resetSelection } = event.detail;
+        this.pageSize = pageSize;
         this.currentOffset = offset;
-        this._resetSelection();
+
+        // Only reset selection when page SIZE changes (user chose a different rows-per-page).
+        // Regular page navigation (next/prev/first/last) must preserve selection.
+        if (resetSelection) {
+            this._resetSelection();
+        }
 
         if (this._currentFilterMode === 'builder') {
             this._runBuilderSearch(offset);
@@ -179,21 +194,13 @@ export default class MassReportExporter extends LightningElement {
     // ─── Selection Events ─────────────────────────────────────────────────────
 
     handleSelectionChange(event) {
-        const { selectedIds, selectedPageIds, selectAllAcrossPages, count } = event.detail;
-        this._selectAllAcrossPages = selectAllAcrossPages;
-
-        if (selectAllAcrossPages) {
-            this._selectedIds    = selectedIds;
-            this.selectedCount   = count;
-        } else {
-            this._selectedIds  = selectedPageIds;
-            this.selectedCount = selectedPageIds.length;
-        }
+        const { selectedIds, count } = event.detail;
+        this._selectedIds = selectedIds;
+        this.selectedCount = count;
     }
 
     async handleSelectAllPages() {
         try {
-            this.isSearching = true;
             let allIds;
 
             if (this.isReportsMode) {
@@ -208,22 +215,14 @@ export default class MassReportExporter extends LightningElement {
                 });
             }
 
-            this._selectedIds  = allIds;
+            this._selectedIds = allIds;
             this.selectedCount = allIds.length;
 
             const table = this.refs.dataTable;
             if (table) { table.setAllSelectedIds(allIds); }
 
-            const label = this.isReportsMode ? 'reports' : 'dashboards';
-            this._showToast(
-                'All Selected',
-                allIds.length + ' ' + label + ' selected across all pages.',
-                'success'
-            );
         } catch (e) {
-            this._showToast('Error', 'Could not fetch all IDs.', 'error');
-        } finally {
-            this.isSearching = false;
+            this._showToast('Error', 'Could not select all records. Please try again.', 'error');
         }
     }
 
@@ -370,7 +369,7 @@ export default class MassReportExporter extends LightningElement {
                 zip.file(file.name, file.base64Content, { base64: true });
             });
             const zipBlob = await zip.generateAsync({ type: 'blob' });
-            const prefix  = this.isReportsMode ? 'ReportExport' : 'DashboardExport';
+            const prefix = this.isReportsMode ? 'ReportExport' : 'DashboardExport';
             this._triggerBlobDownload(zipBlob, prefix + '_' + timestamp + '.zip');
         } else {
             if (files && files.length > 1) {
@@ -395,7 +394,7 @@ export default class MassReportExporter extends LightningElement {
                 const byteChars = atob(file.base64Content);
                 const byteArrays = [];
                 for (let i = 0; i < byteChars.length; i += 512) {
-                    const slice   = byteChars.slice(i, i + 512);
+                    const slice = byteChars.slice(i, i + 512);
                     const byteNums = new Array(slice.length);
                     for (let j = 0; j < slice.length; j++) {
                         byteNums[j] = slice.charCodeAt(j);
@@ -422,7 +421,7 @@ export default class MassReportExporter extends LightningElement {
         const url = URL.createObjectURL(blob);
         try {
             const a = document.createElement('a');
-            a.href     = url;
+            a.href = url;
             a.download = fileName;
             a.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0;';
             (document.body || document.documentElement).appendChild(a);
@@ -498,9 +497,8 @@ export default class MassReportExporter extends LightningElement {
     // ─── Private: Helpers ─────────────────────────────────────────────────────
 
     _resetSelection() {
-        this._selectedIds          = [];
-        this._selectAllAcrossPages = false;
-        this.selectedCount         = 0;
+        this._selectedIds = [];
+        this.selectedCount = 0;
     }
 
     _showToast(title, message, variant) {
