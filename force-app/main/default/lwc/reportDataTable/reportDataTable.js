@@ -72,16 +72,16 @@ export default class ReportDataTable extends NavigationMixin(LightningElement) {
     @api objectMode = 'reports';
 
     @track quickSearchTerm = '';
-    @track sortField = 'name';
-    @track sortDirection = 'asc';
-    @track selectedRowIds = [];
+    @track sortField       = 'nameUrl';
+    @track sortDirection   = 'asc';
+    @track selectedRowIds  = [];
 
     // ─── Internal Selection State ─────────────────────────────────────────────
 
     /** True when "select all across all pages" mode is active. */
     _selectAllActive = false;
     /** Full set of all selected IDs (persists across pages). */
-    _allSelectedIds = new Set();
+    _allSelectedIds  = new Set();
 
     // ─── Lifecycle ────────────────────────────────────────────────────────────
 
@@ -101,7 +101,7 @@ export default class ReportDataTable extends NavigationMixin(LightningElement) {
     @api
     setAllSelectedIds(allIds) {
         this._selectAllActive = true;
-        this._allSelectedIds = new Set(allIds);
+        this._allSelectedIds  = new Set(allIds);
         this._syncPageSelection();
         this._emitSelection();
     }
@@ -112,16 +112,16 @@ export default class ReportDataTable extends NavigationMixin(LightningElement) {
     @api
     resetSelection() {
         this._selectAllActive = false;
-        this._allSelectedIds = new Set();
-        this.selectedRowIds = [];
+        this._allSelectedIds  = new Set();
+        this.selectedRowIds   = [];
         this._emitSelection();
     }
 
     // ─── Computed Getters ─────────────────────────────────────────────────────
 
-    get isReportsMode() { return this.objectMode === 'reports'; }
+    get isReportsMode()    { return this.objectMode === 'reports'; }
     get isDashboardsMode() { return this.objectMode === 'dashboards'; }
-    get columns() { return this.isDashboardsMode ? DASHBOARD_COLUMNS : REPORT_COLUMNS; }
+    get columns()          { return this.isDashboardsMode ? DASHBOARD_COLUMNS : REPORT_COLUMNS; }
 
     get pageSizeOptions() {
         return PAGE_SIZE_OPTIONS.map(o => ({
@@ -192,20 +192,24 @@ export default class ReportDataTable extends NavigationMixin(LightningElement) {
     get filteredRecords() {
         if (!this.searchResult || !this.searchResult.records) return [];
         const term = this.quickSearchTerm.toLowerCase().trim();
-        const records = this.searchResult.records.map(r => ({
+        let records = this.searchResult.records.map(r => ({
             ...r,
             nameUrl: this._buildRecordUrl(r.id)
         }));
-        if (!term) return records;
-        return records.filter(r =>
-            (r.name && r.name.toLowerCase().includes(term)) ||
-            (r.developerName && r.developerName.toLowerCase().includes(term)) ||
-            (r.folderName && r.folderName.toLowerCase().includes(term))
-        );
+        if (term) {
+            records = records.filter(r =>
+                (r.name          && r.name.toLowerCase().includes(term)) ||
+                (r.developerName && r.developerName.toLowerCase().includes(term)) ||
+                (r.folderName    && r.folderName.toLowerCase().includes(term)) ||
+                (r.createdByName && r.createdByName.toLowerCase().includes(term)) ||
+                (r.type          && r.type.toLowerCase().includes(term))
+            );
+        }
+        return this._sortData(records);
     }
 
-    get isQuickFiltered() {
-        return this.quickSearchTerm.trim().length > 0;
+    get hasFilteredRecords() {
+        return this.filteredRecords && this.filteredRecords.length > 0;
     }
 
     get totalPages() {
@@ -299,10 +303,9 @@ export default class ReportDataTable extends NavigationMixin(LightningElement) {
     handlePageSizeChange(event) {
         const newSize = parseInt(event.target.value || event.detail.value, 10);
         // Changing page size resets everything
-        this._selectAllActive = false;
-        this._allSelectedIds = new Set();
-        this._lastRenderedPageKey = '';
-        this.selectedRowIds = [];
+        this._selectAllActive     = false;
+        this._allSelectedIds      = new Set();
+        this.selectedRowIds       = [];
         this.dispatchEvent(
             new CustomEvent('pagechange', {
                 detail: { pageSize: newSize, offset: 0, resetSelection: true },
@@ -330,6 +333,23 @@ export default class ReportDataTable extends NavigationMixin(LightningElement) {
     _buildRecordUrl(recordId) {
         if (!recordId) return null;
         return '/lightning/r/' + recordId + '/view';
+    }
+
+    /**
+     * Sorts an array of records by the current sortField and sortDirection.
+     */
+    _sortData(data) {
+        if (!data || data.length <= 1) return data;
+        const field = this.sortField === 'nameUrl' ? 'name' : this.sortField;
+        const reverse = this.sortDirection === 'desc' ? -1 : 1;
+
+        return [...data].sort((a, b) => {
+            const valA = a[field] != null ? a[field].toString().toLowerCase() : '';
+            const valB = b[field] != null ? b[field].toString().toLowerCase() : '';
+            if (valA < valB) return -1 * reverse;
+            if (valA > valB) return 1 * reverse;
+            return 0;
+        });
     }
 
     /**

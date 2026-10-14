@@ -104,6 +104,20 @@
     font-size: 0.78rem;
 }
 
+.datatable-empty-row {
+    padding: 3rem 1rem;
+    text-align: center;
+    background-color: #ffffff;
+    border: 1px solid #e5e5e5;
+    border-top: none;
+    color: #444444;
+    font-size: 0.875rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
 /* ── Select-all banner ─────────────────────────────────────────────────────── */
 .select-all-banner {
     border-radius: 4px;

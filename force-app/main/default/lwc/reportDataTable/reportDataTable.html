@@ -60,13 +60,7 @@
                                     onchange={handleQuickSearch}>
                                 </lightning-input>
                             </div>
-                            <template if:true={isQuickFiltered}>
-                                <span class="slds-text-body_small slds-text-color_weak quick-filter-count">
-                                    Showing {filteredRecords.length} of {searchResult.records.length}
-                                </span>
-                            </template>
                         </div>
-
 
                         <!-- Data table -->
                         <div class="datatable-container">
@@ -82,58 +76,65 @@
                                 onsort={handleSort}
                                 suppress-bottom-bar>
                             </lightning-datatable>
-                        </div>
-
-                            <!-- Pagination footer -->
-                        <div class="table-pagination-footer">
-                            <div class="pagination-left-corner">
-                                <div class="page-size-wrap">
-                                    <select
-                                        class="page-size-native"
-                                        onchange={handlePageSizeChange}
-                                        aria-label="Rows per page">
-                                        <template for:each={pageSizeOptions} for:item="opt">
-                                            <option
-                                                key={opt.value}
-                                                value={opt.value}
-                                                selected={opt.selected}>
-                                                {opt.label}
-                                            </option>
-                                        </template>
-                                    </select>
+                            <template if:false={hasFilteredRecords}>
+                                <div class="datatable-empty-row">
+                                    <span>No data to display.</span>
                                 </div>
-                                <span class="slds-text-body_small slds-var-m-left_x-small">per page</span>
-                            </div>
-
-                            <div class="pagination-center">
-                                <lightning-button-group>
-                                    <lightning-button
-                                        label="&#171; First"
-                                        disabled={isFirstPage}
-                                        onclick={goFirst}>
-                                    </lightning-button>
-                                    <lightning-button
-                                        label="&#8249; Prev"
-                                        disabled={isFirstPage}
-                                        onclick={goPrev}>
-                                    </lightning-button>
-                                    <lightning-button
-                                        label="Next &#8250;"
-                                        disabled={isLastPage}
-                                        onclick={goNext}>
-                                    </lightning-button>
-                                    <lightning-button
-                                        label="Last &#187;"
-                                        disabled={isLastPage}
-                                        onclick={goLast}>
-                                    </lightning-button>
-                                </lightning-button-group>
-                            </div>
-
-                            <div class="pagination-right-balance">
-                                <!-- Balance spacer -->
-                            </div>
+                            </template>
                         </div>
+
+                        <!-- Pagination footer (hidden when no records found) -->
+                        <template if:true={hasFilteredRecords}>
+                            <div class="table-pagination-footer">
+                                <div class="pagination-left-corner">
+                                    <div class="page-size-wrap">
+                                        <select
+                                            class="page-size-native"
+                                            onchange={handlePageSizeChange}
+                                            aria-label="Rows per page">
+                                            <template for:each={pageSizeOptions} for:item="opt">
+                                                <option
+                                                    key={opt.value}
+                                                    value={opt.value}
+                                                    selected={opt.selected}>
+                                                    {opt.label}
+                                                </option>
+                                            </template>
+                                        </select>
+                                    </div>
+                                    <span class="slds-text-body_small slds-var-m-left_x-small">per page</span>
+                                </div>
+
+                                <div class="pagination-center">
+                                    <lightning-button-group>
+                                        <lightning-button
+                                            label="&#171; First"
+                                            disabled={isFirstPage}
+                                            onclick={goFirst}>
+                                        </lightning-button>
+                                        <lightning-button
+                                            label="&#8249; Prev"
+                                            disabled={isFirstPage}
+                                            onclick={goPrev}>
+                                        </lightning-button>
+                                        <lightning-button
+                                            label="Next &#8250;"
+                                            disabled={isLastPage}
+                                            onclick={goNext}>
+                                        </lightning-button>
+                                        <lightning-button
+                                            label="Last &#187;"
+                                            disabled={isLastPage}
+                                            onclick={goLast}>
+                                        </lightning-button>
+                                    </lightning-button-group>
+                                </div>
+
+                                <div class="pagination-right-balance">
+                                    <!-- Balance spacer -->
+                                </div>
+                            </div>
+                        </template>
 
                     </template>
                 </div>
