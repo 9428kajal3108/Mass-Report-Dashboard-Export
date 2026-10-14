@@ -156,7 +156,39 @@
     /* Spacer keeps pagination-center truly centered */
 }
 
-.page-size-select {
-    width: 80px;
+.page-size-wrap {
+    position: relative;
     display: inline-block;
+}
+
+/* Native select styled to match SLDS inputs */
+.page-size-native {
+    appearance: none;
+    -webkit-appearance: none;
+    height: 32px;
+    width: 80px;
+    padding: 0 28px 0 10px;
+    font-size: 0.8125rem;
+    font-family: inherit;
+    color: #3e3e3c;
+    background-color: #fff;
+    border: 1px solid #dddbda;
+    border-radius: 4px;
+    cursor: pointer;
+    outline: none;
+    /* Custom chevron arrow */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23706e6b' d='M6 8L0 0h12z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+    background-size: 10px 6px;
+    transition: border-color 0.15s;
+}
+
+.page-size-native:hover {
+    border-color: #0070d2;
+}
+
+.page-size-native:focus {
+    border-color: #0070d2;
+    box-shadow: 0 0 0 3px rgba(0, 112, 210, 0.18);
 }

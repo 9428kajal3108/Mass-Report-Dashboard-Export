@@ -13,6 +13,7 @@ public with sharing class DashboardQueryService {
         @AuraEnabled public String field    { get; set; }
         @AuraEnabled public String operator { get; set; }
         @AuraEnabled public String value    { get; set; }
+        @AuraEnabled public String logic    { get; set; } // 'AND' or 'OR' prefix joining to this condition
     }
 
     /** One dashboard row returned to the datatable. */
@@ -256,20 +257,51 @@ public with sharing class DashboardQueryService {
     private static String buildWhereClause(
         List<FilterCondition> conditions,
         String logic
-    ) {
+     ) {
         if (conditions == null || conditions.isEmpty()) { return ''; }
 
         List<String> clauses = new List<String>();
+        List<String> joins   = new List<String>();
+
         for (FilterCondition c : conditions) {
             if (String.isBlank(c.field))                            { continue; }
             if (!ALLOWED_FIELDS.contains(c.field.toLowerCase()))    { continue; }
             String clause = buildSingleClause(c);
-            if (String.isNotBlank(clause)) { clauses.add(clause); }
+            if (String.isBlank(clause))                             { continue; }
+
+            clauses.add(clause);
+            String joiner = (String.isNotBlank(c.logic) && c.logic.equalsIgnoreCase('OR')) ? 'OR' : 'AND';
+            if (String.isBlank(c.logic) && String.isNotBlank(logic) && logic.equalsIgnoreCase('OR')) {
+                joiner = 'OR';
+            }
+            joins.add(joiner);
         }
 
         if (clauses.isEmpty()) { return ''; }
-        String joiner = (logic == 'OR') ? ' OR ' : ' AND ';
-        return ' WHERE ' + String.join(clauses, joiner);
+        if (clauses.size() == 1) { return ' WHERE ' + clauses[0]; }
+
+        // Check if all joins are pure AND or pure OR
+        Boolean hasAnd = false;
+        Boolean hasOr  = false;
+        for (Integer i = 1; i < joins.size(); i++) {
+            if (joins[i] == 'OR') { hasOr = true; }
+            else { hasAnd = true; }
+        }
+
+        String whereBody = '';
+        if (hasAnd && !hasOr) {
+            whereBody = String.join(clauses, ' AND ');
+        } else if (hasOr && !hasAnd) {
+            whereBody = String.join(clauses, ' OR ');
+        } else {
+            // Mixed AND and OR requires parentheses in SOQL to avoid 'unexpected token' syntax errors
+            whereBody = clauses[0];
+            for (Integer i = 1; i < clauses.size(); i++) {
+                whereBody = '(' + whereBody + ' ' + joins[i] + ' ' + clauses[i] + ')';
+            }
+        }
+
+        return ' WHERE ' + whereBody;
     }
 
     @TestVisible

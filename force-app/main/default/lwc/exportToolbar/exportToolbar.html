@@ -80,12 +80,6 @@
                     onclick={handleExport}
                     class="slds-button_stretch export-submit-btn">
                 </lightning-button>
-
-                <template if:true={isExporting}>
-                    <div class="export-spinner-wrap slds-var-m-top_x-small slds-align_absolute-center">
-                        <lightning-spinner alternative-text={exportingLabel} size="small"></lightning-spinner>
-                    </div>
-                </template>
             </div>
         </div>
     </div>

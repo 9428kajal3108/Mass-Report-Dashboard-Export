@@ -102,8 +102,8 @@ export default class FilterRow extends LightningElement {
     /** Current condition: { field, operator, value } */
     @api condition = { field: '', operator: '', value: '' };
 
-    /** Show the "+ Add Condition" button inline on this row (last row only). */
-    @api showAddButton = false;
+    /** True when this is the only condition row — hides the remove button. */
+    @api isOnlyRow = false;
 
     // ─── Getters ──────────────────────────────────────────────────────────────
 
@@ -156,12 +156,6 @@ export default class FilterRow extends LightningElement {
                 bubbles: true,
                 detail: { index: this.rowIndex }
             })
-        );
-    }
-
-    handleAdd() {
-        this.dispatchEvent(
-            new CustomEvent('addcondition', { bubbles: true })
         );
     }
 

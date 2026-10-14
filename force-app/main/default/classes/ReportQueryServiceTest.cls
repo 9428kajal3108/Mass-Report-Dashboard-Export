@@ -59,12 +59,24 @@ private class ReportQueryServiceTest {
     }
 
     @IsTest
-    static void testSearchReports_InvalidField_IsIgnored() {
+    static void testSearchReports_IndividualConditionLogic() {
         List<Map<String, String>> conditions = new List<Map<String, String>>{
             new Map<String, String>{
-                'field'    => 'INVALID_FIELD__c',
-                'operator' => '=',
-                'value'    => 'test'
+                'field'    => 'CreatedDate',
+                'operator' => '!= null',
+                'value'    => ''
+            },
+            new Map<String, String>{
+                'field'    => 'Description',
+                'operator' => '= null',
+                'value'    => '',
+                'logic'    => 'OR'
+            },
+            new Map<String, String>{
+                'field'    => 'Name',
+                'operator' => '= null',
+                'value'    => '',
+                'logic'    => 'AND'
             }
         };
         String jsonStr = System.JSON.serialize(conditions);
@@ -74,8 +86,7 @@ private class ReportQueryServiceTest {
             ReportQueryService.searchReports(jsonStr, 'AND', 10, 0);
         Test.stopTest();
 
-        // Invalid field should be silently skipped — result is unfiltered
-        System.assert(result.success, 'Should succeed even with invalid field.');
+        System.assert(result.success, 'Expected success=true for mixed OR and AND conditions without unexpected token error: ' + result.errorMessage);
     }
 
     // ─── validateSOQL ─────────────────────────────────────────────────────────

@@ -106,19 +106,24 @@
                             </lightning-datatable>
                         </div>
 
-                        <!-- Pagination footer -->
+                            <!-- Pagination footer -->
                         <div class="table-pagination-footer">
                             <div class="pagination-left-corner">
-                                <span class="slds-text-body_small slds-var-m-right_x-small">View</span>
-                                <lightning-combobox
-                                    name="pageSize"
-                                    label="Page Size"
-                                    variant="label-hidden"
-                                    value={pageSizeStr}
-                                    options={pageSizeOptions}
-                                    class="page-size-select"
-                                    onchange={handlePageSizeChange}>
-                                </lightning-combobox>
+                                <div class="page-size-wrap">
+                                    <select
+                                        class="page-size-native"
+                                        onchange={handlePageSizeChange}
+                                        aria-label="Rows per page">
+                                        <template for:each={pageSizeOptions} for:item="opt">
+                                            <option
+                                                key={opt.value}
+                                                value={opt.value}
+                                                selected={opt.selected}>
+                                                {opt.label}
+                                            </option>
+                                        </template>
+                                    </select>
+                                </div>
                                 <span class="slds-text-body_small slds-var-m-left_x-small">per page</span>
                             </div>
 
