@@ -1,15 +1,16 @@
 <template>
-    <!-- Export overlay: covers the entire component when isExporting is true -->
+    <!-- Export overlay: strictly contained inside the component boundary -->
     <div class={appWrapperClass}>
 
-        <!-- Full-page export overlay spinner -->
+        <!-- Component-contained standard SLDS export overlay spinner -->
         <template if:true={isExporting}>
-            <div class="export-overlay" role="status" aria-label="Exporting, please wait...">
-                <div class="export-overlay__box">
-                    <lightning-spinner
-                        alternative-text="Exporting, please wait..."
-                        size="large">
-                    </lightning-spinner>
+            <div class="export-overlay slds-is-relative" role="status" aria-label={exportOverlayLabel}>
+                <lightning-spinner
+                    alternative-text={exportOverlayLabel}
+                    variant="brand"
+                    size="medium">
+                </lightning-spinner>
+                <div class="export-overlay__label-wrap">
                     <p class="export-overlay__label">{exportOverlayLabel}</p>
                 </div>
             </div>
