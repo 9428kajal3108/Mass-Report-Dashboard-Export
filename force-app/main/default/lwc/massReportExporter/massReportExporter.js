@@ -115,7 +115,9 @@ export default class MassReportExporter extends LightningElement {
 
     /** Wrapper class — adds the overlay-active modifier when exporting so the spinner is visible. */
     get appWrapperClass() {
-        return this.isExporting ? 'app-wrapper app-wrapper--exporting' : 'app-wrapper';
+        return this.isExporting
+            ? 'app-wrapper slds-is-relative app-wrapper--exporting'
+            : 'app-wrapper slds-is-relative';
     }
 
     get exportOverlayLabel() {
@@ -292,6 +294,10 @@ export default class MassReportExporter extends LightningElement {
                     : '.'),
                 result.totalFailed > 0 ? 'warning' : 'success'
             );
+
+            if (result.totalExported > 0) {
+                this._clearSelection();
+            }
         } catch (e) {
             this._showToast('Export Error', e.body ? e.body.message : String(e), 'error');
         } finally {
@@ -344,6 +350,10 @@ export default class MassReportExporter extends LightningElement {
                 `${files.length} exported, ${failed} failed.`,
                 failed ? 'warning' : 'success'
             );
+
+            if (files.length > 0) {
+                this._clearSelection();
+            }
         } catch (e) {
             this._showToast('Export Error', e.body ? e.body.message : (e.message || String(e)), 'error');
         } finally {
@@ -543,6 +553,16 @@ export default class MassReportExporter extends LightningElement {
     _resetSelection() {
         this._selectedIds = [];
         this.selectedCount = 0;
+    }
+
+    _clearSelection() {
+        this._selectedIds = [];
+        this.selectedCount = 0;
+        this._selectAllAcrossPages = false;
+        const table = this.refs.dataTable;
+        if (table) {
+            table.resetSelection();
+        }
     }
 
     _showToast(title, message, variant) {
