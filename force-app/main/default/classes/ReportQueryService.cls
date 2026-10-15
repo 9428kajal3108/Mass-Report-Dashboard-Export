@@ -112,14 +112,21 @@ public with sharing class ReportQueryService {
     ) {
         ReportSearchResult result = new ReportSearchResult();
         try {
+            Id currentUserId = UserInfo.getUserId();
+            Set<Id> folderIds = null;
+            Boolean isAdmin = isUserAdmin();
+            if (!isAdmin) {
+                folderIds = getAccessibleReportFolderIds();
+            }
+
             List<FilterCondition> conditions = deserializeConditions(conditionsJson);
             String whereClause = buildWhereClause(conditions, logic);
 
-            // Exclude records created by "Automated Process"
+            String accessFilter = (!isAdmin ? ' AND (CreatedById = :currentUserId OR OwnerId IN :folderIds)' : '');
             String automatedFilter = ' AND CreatedBy.Name != \'Automated Process\'';
             String countWhere = String.isBlank(whereClause)
-                ? ' WHERE CreatedBy.Name != \'Automated Process\''
-                : whereClause + automatedFilter;
+                ? ' WHERE CreatedBy.Name != \'Automated Process\'' + accessFilter
+                : whereClause + automatedFilter + accessFilter;
 
             // AccessLevel.USER_MODE enforces record-level sharing and permissions
             result.totalCount = Database.countQuery(
@@ -127,10 +134,7 @@ public with sharing class ReportQueryService {
                 AccessLevel.USER_MODE
             );
 
-            String dataWhere = String.isBlank(whereClause)
-                ? ' WHERE CreatedBy.Name != \'Automated Process\''
-                : whereClause + automatedFilter;
-
+            String dataWhere = countWhere;
             String query = BASE_SELECT + dataWhere + DEFAULT_ORDER
                 + ' LIMIT '  + safePage(pageSize)
                 + ' OFFSET ' + safeOff(offset);
@@ -149,14 +153,21 @@ public with sharing class ReportQueryService {
      */
     @AuraEnabled
     public static List<String> getAllReportIds(String conditionsJson, String logic) {
+        Id currentUserId = UserInfo.getUserId();
+        Set<Id> folderIds = null;
+        Boolean isAdmin = isUserAdmin();
+        if (!isAdmin) {
+            folderIds = getAccessibleReportFolderIds();
+        }
+
         List<FilterCondition> conditions = deserializeConditions(conditionsJson);
         String whereClause = buildWhereClause(conditions, logic);
 
-        // Exclude records created by "Automated Process"
+        String accessFilter = (!isAdmin ? ' AND (CreatedById = :currentUserId OR OwnerId IN :folderIds)' : '');
         String automatedFilter = ' AND CreatedBy.Name != \'Automated Process\'';
         String dataWhere = String.isBlank(whereClause)
-            ? ' WHERE CreatedBy.Name != \'Automated Process\''
-            : whereClause + automatedFilter;
+            ? ' WHERE CreatedBy.Name != \'Automated Process\'' + accessFilter
+            : whereClause + automatedFilter + accessFilter;
 
         String query = 'SELECT Id FROM Report' + dataWhere
             + DEFAULT_ORDER + ' LIMIT ' + MAX_QUERY_LIMIT;
@@ -238,14 +249,21 @@ public with sharing class ReportQueryService {
                 return result;
             }
 
+            Id currentUserId = UserInfo.getUserId();
+            Set<Id> folderIds = null;
+            Boolean isAdmin = isUserAdmin();
+            if (!isAdmin) {
+                folderIds = getAccessibleReportFolderIds();
+            }
+
             String normalized  = rawSOQL.toLowerCase().trim();
             String whereClause = extractWhereClause(rawSOQL, normalized);
 
-            // Exclude records created by "Automated Process"
+            String accessFilter = (!isAdmin ? ' AND (CreatedById = :currentUserId OR OwnerId IN :folderIds)' : '');
             String automatedFilter = ' AND CreatedBy.Name != \'Automated Process\'';
             String countWhere = String.isBlank(whereClause)
-                ? ' WHERE CreatedBy.Name != \'Automated Process\''
-                : whereClause + automatedFilter;
+                ? ' WHERE CreatedBy.Name != \'Automated Process\'' + accessFilter
+                : whereClause + automatedFilter + accessFilter;
             String dataWhere = countWhere;
 
             result.totalCount = Database.countQuery(
@@ -263,6 +281,45 @@ public with sharing class ReportQueryService {
             result.errorMessage = ex.getMessage();
         }
         return result;
+    }
+
+    // ─── Access Control Helpers ───────────────────────────────────────────────
+
+    @TestVisible
+    private static Boolean isUserAdmin() {
+        Id profileId = UserInfo.getProfileId();
+        if (profileId != null) {
+            List<Profile> profiles = [
+                SELECT Name, PermissionsModifyAllData, PermissionsViewAllData
+                FROM Profile
+                WHERE Id = :profileId
+                LIMIT 1
+            ];
+            if (!profiles.isEmpty()) {
+                Profile p = profiles[0];
+                if (p.Name == 'System Administrator' || p.PermissionsModifyAllData == true || p.PermissionsViewAllData == true) {
+                    return true;
+                }
+            }
+        }
+        Integer adminPermSets = [
+            SELECT COUNT()
+            FROM PermissionSetAssignment
+            WHERE AssigneeId = :UserInfo.getUserId()
+            AND (PermissionSet.PermissionsModifyAllData = true OR PermissionSet.PermissionsViewAllData = true)
+        ];
+        return adminPermSets > 0;
+    }
+
+    @TestVisible
+    private static Set<Id> getAccessibleReportFolderIds() {
+        Set<Id> folderIds = new Set<Id>();
+        folderIds.add(UserInfo.getUserId());
+        folderIds.add(UserInfo.getOrganizationId());
+        for (Folder f : [SELECT Id FROM Folder WHERE Type = 'Report']) {
+            folderIds.add(f.Id);
+        }
+        return folderIds;
     }
 
     // ─── Private Helpers ──────────────────────────────────────────────────────

@@ -32,55 +32,82 @@
                         </div>
                     </div>
 
-                    <!-- Mode Switcher: Reports | Dashboards -->
-                    <div class="mode-switcher">
-                        <button
-                            class={reportsModeClass}
-                            onclick={switchToReports}
-                            title="Switch to Reports mode">
-                            <lightning-icon icon-name="standard:report" size="x-small" class="mode-btn-icon"></lightning-icon>
-                            Reports
-                        </button>
-                        <button
-                            class={dashboardsModeClass}
-                            onclick={switchToDashboards}
-                            title="Switch to Dashboards mode">
-                            <lightning-icon icon-name="standard:dashboard" size="x-small" class="mode-btn-icon"></lightning-icon>
-                            Dashboards
-                        </button>
-                    </div>
+                    <!-- Mode Switcher: Reports | Dashboards (only when user has access) -->
+                    <template if:false={isAccessRestricted}>
+                        <div class="mode-switcher">
+                            <button
+                                class={reportsModeClass}
+                                onclick={switchToReports}
+                                title="Switch to Reports mode">
+                                <lightning-icon icon-name="standard:report" size="x-small" class="mode-btn-icon"></lightning-icon>
+                                Reports
+                            </button>
+                            <button
+                                class={dashboardsModeClass}
+                                onclick={switchToDashboards}
+                                title="Switch to Dashboards mode">
+                                <lightning-icon icon-name="standard:dashboard" size="x-small" class="mode-btn-icon"></lightning-icon>
+                                Dashboards
+                            </button>
+                        </div>
+                    </template>
                 </div>
             </div>
 
-            <!-- ══ FILTER PANEL ══ -->
-            <c-filter-builder
-                fields={activeFields}
-                object-mode={currentMode}
-                onsearchrequest={handleSearchRequest}
-                onclearfilters={handleClearFilters}>
-            </c-filter-builder>
-
-            <!-- ══ RESULTS + EXPORT ══ -->
-            <c-report-data-table
-                search-result={searchResult}
-                is-loading={isSearching}
-                page-size={pageSize}
-                current-offset={currentOffset}
-                object-mode={currentMode}
-                onpagechange={handlePageChange}
-                onselectionchange={handleSelectionChange}
-                onselectallpages={handleSelectAllPages}
-                lwc:ref="dataTable">
-
-                <!-- Export toolbar slotted inside the card -->
-                <c-export-toolbar
-                    slot="export-toolbar"
-                    selected-count={selectedCount}
-                    is-exporting={isExporting}
+            <!-- ══ CONTENT (when user has access) ══ -->
+            <template if:false={isAccessRestricted}>
+                <!-- ══ FILTER PANEL ══ -->
+                <c-filter-builder
+                    fields={activeFields}
                     object-mode={currentMode}
-                    onexportrequest={handleExportRequest}>
-                </c-export-toolbar>
-            </c-report-data-table>
+                    onsearchrequest={handleSearchRequest}
+                    onclearfilters={handleClearFilters}>
+                </c-filter-builder>
+
+                <!-- ══ RESULTS + EXPORT ══ -->
+                <c-report-data-table
+                    search-result={searchResult}
+                    is-loading={isSearching}
+                    page-size={pageSize}
+                    current-offset={currentOffset}
+                    object-mode={currentMode}
+                    onpagechange={handlePageChange}
+                    onselectionchange={handleSelectionChange}
+                    onselectallpages={handleSelectAllPages}
+                    lwc:ref="dataTable">
+
+                    <!-- Export toolbar slotted inside the card -->
+                    <c-export-toolbar
+                        slot="export-toolbar"
+                        selected-count={selectedCount}
+                        is-exporting={isExporting}
+                        object-mode={currentMode}
+                        onexportrequest={handleExportRequest}>
+                    </c-export-toolbar>
+                </c-report-data-table>
+            </template>
+
+            <!-- ══ ACCESS RESTRICTED STATE (when user lacks access or permission set) ══ -->
+            <template if:true={isAccessRestricted}>
+                <div class="access-restricted-card">
+                    <div class="access-restricted-content">
+                        <div class="access-illustration">
+                            <svg class="access-svg" viewBox="0 0 160 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="80" cy="70" r="58" fill="#F3F5F9"/>
+                                <circle cx="80" cy="70" r="44" fill="#E8EDF4"/>
+                                <path d="M66 60V48C66 40.268 72.268 34 80 34C87.732 34 94 40.268 94 48V60" stroke="#0070D2" stroke-width="6" stroke-linecap="round"/>
+                                <rect x="56" y="60" width="48" height="38" rx="8" fill="#0070D2"/>
+                                <circle cx="80" cy="76" r="3.5" fill="#FFFFFF"/>
+                                <path d="M80 80V87" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"/>
+                            </svg>
+                        </div>
+                        <h2 class="access-title">Access Restricted</h2>
+                        <p class="access-description">
+                            You don't have access to this application. Please contact your Salesforce Administrator to request permission.
+                        </p>
+                    </div>
+                </div>
+            </template>
 
         </div>
     </div>

@@ -30,17 +30,30 @@ export default class MassReportExporter extends LightningElement {
     @wire(getReportFields)
     wiredReportFields({ data, error }) {
         if (data) { this.reportFields = data; }
-        if (error) { this._showToast('Error', 'Could not load Report fields.', 'error'); }
+        if (error) {
+            if (this._isAccessError(error)) {
+                this.isAccessRestricted = true;
+            } else {
+                this._showToast('Error', 'Could not load Report fields.', 'error');
+            }
+        }
     }
 
     @wire(getDashboardFields)
     wiredDashboardFields({ data, error }) {
         if (data) { this.dashboardFields = data; }
-        if (error) { this._showToast('Error', 'Could not load Dashboard fields.', 'error'); }
+        if (error) {
+            if (this._isAccessError(error)) {
+                this.isAccessRestricted = true;
+            } else {
+                this._showToast('Error', 'Could not load Dashboard fields.', 'error');
+            }
+        }
     }
 
     // ─── State ────────────────────────────────────────────────────────────────
 
+    @track isAccessRestricted = false;
     @track reportFields = [];
     @track dashboardFields = [];
     @track searchResult = null;
@@ -457,10 +470,18 @@ export default class MassReportExporter extends LightningElement {
                 });
             }
             if (!this.searchResult.success) {
-                this._showToast('Search Error', this.searchResult.errorMessage, 'error');
+                if (this._isAccessError(this.searchResult.errorMessage)) {
+                    this.isAccessRestricted = true;
+                } else {
+                    this._showToast('Search Error', this.searchResult.errorMessage, 'error');
+                }
             }
         } catch (e) {
-            this._showToast('Search Error', e.body ? e.body.message : String(e), 'error');
+            if (this._isAccessError(e)) {
+                this.isAccessRestricted = true;
+            } else {
+                this._showToast('Search Error', e.body ? e.body.message : String(e), 'error');
+            }
             this.searchResult = { success: false, errorMessage: e.body ? e.body.message : String(e), records: [], totalCount: 0 };
         } finally {
             this.isSearching = false;
@@ -484,10 +505,18 @@ export default class MassReportExporter extends LightningElement {
                 });
             }
             if (!this.searchResult.success) {
-                this._showToast('Search Error', this.searchResult.errorMessage, 'error');
+                if (this._isAccessError(this.searchResult.errorMessage)) {
+                    this.isAccessRestricted = true;
+                } else {
+                    this._showToast('Search Error', this.searchResult.errorMessage, 'error');
+                }
             }
         } catch (e) {
-            this._showToast('Search Error', e.body ? e.body.message : String(e), 'error');
+            if (this._isAccessError(e)) {
+                this.isAccessRestricted = true;
+            } else {
+                this._showToast('Search Error', e.body ? e.body.message : String(e), 'error');
+            }
             this.searchResult = { success: false, errorMessage: e.body ? e.body.message : String(e), records: [], totalCount: 0 };
         } finally {
             this.isSearching = false;
@@ -496,12 +525,28 @@ export default class MassReportExporter extends LightningElement {
 
     // ─── Private: Helpers ─────────────────────────────────────────────────────
 
+    _isAccessError(err) {
+        if (!err) return false;
+        if (err.status === 403 || err.status === 401) return true;
+        const msg = (err.body && err.body.message ? err.body.message : (err.message || String(err))).toLowerCase();
+        return msg.includes('do not have access') ||
+               msg.includes('access to the apex class') ||
+               msg.includes('insufficient access') ||
+               msg.includes('insufficient_access') ||
+               msg.includes('not authorized') ||
+               msg.includes('unauthorized') ||
+               msg.includes('reportqueryservice') ||
+               msg.includes('dashboardqueryservice') ||
+               msg.includes('reportexportservice');
+    }
+
     _resetSelection() {
         this._selectedIds = [];
         this.selectedCount = 0;
     }
 
     _showToast(title, message, variant) {
+        if (this.isAccessRestricted) return;
         this.dispatchEvent(new ShowToastEvent({ title, message, variant }));
     }
 

@@ -214,4 +214,46 @@ private class ReportQueryServiceTest {
         System.assertEquals(false, result.success);
         System.assert(String.isNotBlank(result.errorMessage));
     }
+
+    // ─── Access Control Tests ─────────────────────────────────────────────────
+
+    @IsTest
+    static void testIsUserAdmin() {
+        Test.startTest();
+        Boolean isAdmin = ReportQueryService.isUserAdmin();
+        Set<Id> folderIds = ReportQueryService.getAccessibleReportFolderIds();
+        Test.stopTest();
+
+        System.assertNotEquals(null, isAdmin);
+        System.assertNotEquals(null, folderIds);
+    }
+
+    @IsTest
+    static void testSearchReports_StandardUserAccess() {
+        List<Profile> profiles = [SELECT Id FROM Profile WHERE Name = 'Standard User' LIMIT 1];
+        if (profiles.isEmpty()) return;
+
+        User stdUser = new User(
+            Alias = 'stdusr',
+            Email = 'standarduser_mass_export@testorg.com',
+            EmailEncodingKey = 'UTF-8',
+            LastName = 'TestingStandardUser',
+            LanguageLocaleKey = 'en_US',
+            LocaleSidKey = 'en_US',
+            ProfileId = profiles[0].Id,
+            TimeZoneSidKey = 'America/Los_Angeles',
+            UserName = 'stduser_' + DateTime.now().getTime() + '@testorg.com'
+        );
+
+        System.runAs(stdUser) {
+            Test.startTest();
+            ReportQueryService.ReportSearchResult result =
+                ReportQueryService.searchReports('[]', 'AND', 10, 0);
+            List<String> allIds = ReportQueryService.getAllReportIds('[]', 'AND');
+            Test.stopTest();
+
+            System.assertNotEquals(null, result);
+            System.assertNotEquals(null, allIds);
+        }
+    }
 }

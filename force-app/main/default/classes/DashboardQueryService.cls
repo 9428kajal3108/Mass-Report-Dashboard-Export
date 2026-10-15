@@ -121,14 +121,21 @@ public with sharing class DashboardQueryService {
     ) {
         DashboardSearchResult result = new DashboardSearchResult();
         try {
+            Id currentUserId = UserInfo.getUserId();
+            Set<Id> folderIds = null;
+            Boolean isAdmin = isUserAdmin();
+            if (!isAdmin) {
+                folderIds = getAccessibleDashboardFolderIds();
+            }
+
             List<FilterCondition> conditions = deserializeConditions(conditionsJson);
             String whereClause = buildWhereClause(conditions, logic);
 
-            // Exclude records created by "Automated Process"
+            String accessFilter = (!isAdmin ? ' AND (CreatedById = :currentUserId OR FolderId IN :folderIds OR OwnerId IN :folderIds)' : '');
             String automatedFilter = ' AND CreatedBy.Name != \'Automated Process\'';
             String countWhere = String.isBlank(whereClause)
-                ? ' WHERE CreatedBy.Name != \'Automated Process\''
-                : whereClause + automatedFilter;
+                ? ' WHERE CreatedBy.Name != \'Automated Process\'' + accessFilter
+                : whereClause + automatedFilter + accessFilter;
             String dataWhere = countWhere;
 
             // AccessLevel.USER_MODE ensures only dashboards the user can read are returned
@@ -155,14 +162,21 @@ public with sharing class DashboardQueryService {
      */
     @AuraEnabled
     public static List<String> getAllDashboardIds(String conditionsJson, String logic) {
+        Id currentUserId = UserInfo.getUserId();
+        Set<Id> folderIds = null;
+        Boolean isAdmin = isUserAdmin();
+        if (!isAdmin) {
+            folderIds = getAccessibleDashboardFolderIds();
+        }
+
         List<FilterCondition> conditions = deserializeConditions(conditionsJson);
         String whereClause = buildWhereClause(conditions, logic);
 
-        // Exclude records created by "Automated Process"
+        String accessFilter = (!isAdmin ? ' AND (CreatedById = :currentUserId OR FolderId IN :folderIds OR OwnerId IN :folderIds)' : '');
         String automatedFilter = ' AND CreatedBy.Name != \'Automated Process\'';
         String dataWhere = String.isBlank(whereClause)
-            ? ' WHERE CreatedBy.Name != \'Automated Process\''
-            : whereClause + automatedFilter;
+            ? ' WHERE CreatedBy.Name != \'Automated Process\'' + accessFilter
+            : whereClause + automatedFilter + accessFilter;
 
         String query = 'SELECT Id FROM Dashboard' + dataWhere
             + DEFAULT_ORDER + ' LIMIT ' + MAX_QUERY_LIMIT;
@@ -241,14 +255,21 @@ public with sharing class DashboardQueryService {
                 return result;
             }
 
+            Id currentUserId = UserInfo.getUserId();
+            Set<Id> folderIds = null;
+            Boolean isAdmin = isUserAdmin();
+            if (!isAdmin) {
+                folderIds = getAccessibleDashboardFolderIds();
+            }
+
             String normalized  = rawSOQL.toLowerCase().trim();
             String whereClause = extractWhereClause(rawSOQL, normalized);
 
-            // Exclude records created by "Automated Process"
+            String accessFilter = (!isAdmin ? ' AND (CreatedById = :currentUserId OR FolderId IN :folderIds OR OwnerId IN :folderIds)' : '');
             String automatedFilter = ' AND CreatedBy.Name != \'Automated Process\'';
             String countWhere = String.isBlank(whereClause)
-                ? ' WHERE CreatedBy.Name != \'Automated Process\''
-                : whereClause + automatedFilter;
+                ? ' WHERE CreatedBy.Name != \'Automated Process\'' + accessFilter
+                : whereClause + automatedFilter + accessFilter;
             String dataWhere = countWhere;
 
             result.totalCount = Database.countQuery(
@@ -266,6 +287,45 @@ public with sharing class DashboardQueryService {
             result.errorMessage = ex.getMessage();
         }
         return result;
+    }
+
+    // ─── Access Control Helpers ───────────────────────────────────────────────
+
+    @TestVisible
+    private static Boolean isUserAdmin() {
+        Id profileId = UserInfo.getProfileId();
+        if (profileId != null) {
+            List<Profile> profiles = [
+                SELECT Name, PermissionsModifyAllData, PermissionsViewAllData
+                FROM Profile
+                WHERE Id = :profileId
+                LIMIT 1
+            ];
+            if (!profiles.isEmpty()) {
+                Profile p = profiles[0];
+                if (p.Name == 'System Administrator' || p.PermissionsModifyAllData == true || p.PermissionsViewAllData == true) {
+                    return true;
+                }
+            }
+        }
+        Integer adminPermSets = [
+            SELECT COUNT()
+            FROM PermissionSetAssignment
+            WHERE AssigneeId = :UserInfo.getUserId()
+            AND (PermissionSet.PermissionsModifyAllData = true OR PermissionSet.PermissionsViewAllData = true)
+        ];
+        return adminPermSets > 0;
+    }
+
+    @TestVisible
+    private static Set<Id> getAccessibleDashboardFolderIds() {
+        Set<Id> folderIds = new Set<Id>();
+        folderIds.add(UserInfo.getUserId());
+        folderIds.add(UserInfo.getOrganizationId());
+        for (Folder f : [SELECT Id FROM Folder WHERE Type = 'Dashboard']) {
+            folderIds.add(f.Id);
+        }
+        return folderIds;
     }
 
     // ─── Private Helpers ──────────────────────────────────────────────────────
